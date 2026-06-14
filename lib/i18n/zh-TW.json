@@ -1,0 +1,23 @@
+{
+  "appName": "找不同",
+  "selectPhoto": "選擇照片",
+  "takePhoto": "拍照",
+  "generating": "正在產生謎題...",
+  "uploadError": "生成失敗，請重試",
+  "selectError": "選擇照片失敗，請重試",
+  "found": "已找到",
+  "of": "/",
+  "hint": "提示",
+  "completed": "全部找到！",
+  "playAgain": "再玩一次",
+  "newPhoto": "換張照片",
+  "settings": "設定",
+  "language": "語言",
+  "english": "English",
+  "chineseSimplified": "简体中文",
+  "chineseTraditional": "繁體中文",
+  "about": "關於",
+  "madeBy": "Made with ❤️ by Hugo",
+  "original": "原圖",
+  "modified": "修改圖"
+}

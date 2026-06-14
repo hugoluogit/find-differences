@@ -1,0 +1,22 @@
+export interface Difference {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export interface GenerateResponse {
+  originalImage: string;
+  modifiedImage: string;
+  differences: Difference[];
+  totalChanges: number;
+}
+
+export interface GameState {
+  originalImage: string;
+  modifiedImage: string;
+  differences: Difference[];
+  foundIndices: number[];
+  totalChanges: number;
+  status: 'playing' | 'completed';
+}

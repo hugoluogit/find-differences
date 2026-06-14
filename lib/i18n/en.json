@@ -1,0 +1,23 @@
+{
+  "appName": "Spot the Difference",
+  "selectPhoto": "Select Photo",
+  "takePhoto": "Take Photo",
+  "generating": "Generating puzzle...",
+  "uploadError": "Failed to generate puzzle. Please try again.",
+  "selectError": "Failed to select photo. Please try again.",
+  "found": "Found",
+  "of": "of",
+  "hint": "Hint",
+  "completed": "All differences found!",
+  "playAgain": "Play Again",
+  "newPhoto": "New Photo",
+  "settings": "Settings",
+  "language": "Language",
+  "english": "English",
+  "chineseSimplified": "简体中文",
+  "chineseTraditional": "繁體中文",
+  "about": "About",
+  "madeBy": "Made with ❤️ by Hugo",
+  "original": "Original",
+  "modified": "Modified"
+}
