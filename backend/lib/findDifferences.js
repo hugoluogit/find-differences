@@ -17,10 +17,13 @@ async function findDifferences(original, modified, apiKey) {
           {
             type: 'text',
             text:
-              'You are a spot-the-difference puzzle solver.\n' +
-              'Image A is the original photo. Image B has exactly 5 subtle visual changes.\n' +
-              'Find all 5 differences between Image A and Image B.\n' +
+              'You are a spot-the-difference puzzle solver. Compare Image A (original) and Image B (modified) VERY carefully.\n' +
+              'Image B has exactly 5 visual changes. Find ALL 5 differences.\n' +
+              'Look for: color changes, missing objects, new objects, shape changes, or size changes.\n' +
+              'Scan the entire image systematically — top to bottom, left to right.\n' +
               'For each difference, give the bounding box as percentage coordinates (0–1).\n' +
+              'Be precise: the box should tightly enclose the changed area.\n' +
+              'If the change spans a large area, cover the full region.\n' +
               'Respond with ONLY a JSON array, no other text:\n' +
               '[\n  {"x":0.xx,"y":0.xx,"w":0.xx,"h":0.xx},\n  ...\n]',
           },
@@ -36,8 +39,8 @@ async function findDifferences(original, modified, apiKey) {
       },
       { role: 'assistant', content: '[' },
     ],
-    max_tokens: 1024,
-    temperature: 0.1,
+    max_tokens: 2048,
+    temperature: 0.05,
   };
 
   const resp = await fetch(ARK_API, {
