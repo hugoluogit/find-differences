@@ -55,6 +55,7 @@ export default function GameScreen() {
         setLoading(false);
       })
       .catch((e) => {
+        console.log('generateGame error:', e.message);
         setError(e.message || 'Failed to generate puzzle');
         setLoading(false);
       });
@@ -135,7 +136,7 @@ export default function GameScreen() {
     return (
       <View style={[styles.center, { paddingTop: insets.top }]}>
         <Ionicons name="alert-circle-outline" size={48} color="#FF6B6B" />
-        <Text style={styles.errorText}>{t('uploadError')}</Text>
+        <Text style={styles.errorText}>{error}</Text>
         <View style={styles.buttonRow}>
           <TouchableOpacity style={styles.retryBtn} onPress={handleRetry}>
             <Text style={styles.retryBtnText}>{t('playAgain')}</Text>
