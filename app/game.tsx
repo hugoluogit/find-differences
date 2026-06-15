@@ -13,6 +13,7 @@ import {
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useI18n } from '../lib/i18n';
 import { generateGame } from '../lib/api';
 import { popPendingImageUri } from '../lib/store';
@@ -80,9 +81,13 @@ export default function GameScreen() {
           foundIndices: newFound,
           status: completed ? 'completed' : 'playing',
         } : prev);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         return;
       }
     }
+
+    // Miss — feedback
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, [game, imageLayout]);
 
   const handleRetry = () => {
