@@ -1,9 +1,9 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import type { GenerateResponse } from './types';
 
-// Default to localhost for development — set EXPO_PUBLIC_API_URL for production
+// Set EXPO_PUBLIC_API_URL to override, e.g. for local development
 const API_URL =
-  process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000/api/generate';
+  process.env.EXPO_PUBLIC_API_URL ?? 'https://find-differences-m5tr.vercel.app/api/generate';
 
 export async function generateGame(imageUri: string): Promise<GenerateResponse> {
   const base64 = await FileSystem.readAsStringAsync(imageUri, {
