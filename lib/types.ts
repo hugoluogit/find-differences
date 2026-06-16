@@ -20,3 +20,7 @@ export interface GameState {
   totalChanges: number;
   status: 'playing' | 'completed';
 }
+
+export interface CheckoutResponse {
+  url: string;
+}

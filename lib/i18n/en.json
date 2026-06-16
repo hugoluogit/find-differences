@@ -19,5 +19,9 @@
   "about": "About",
   "madeBy": "Made with ❤️ by Hugo",
   "original": "Original",
-  "modified": "Modified"
+  "modified": "Modified",
+  "payToPlay": "Unlock Puzzle",
+  "payBtn": "Pay $0.10",
+  "processing": "Processing...",
+  "cancel": "Cancel"
 }

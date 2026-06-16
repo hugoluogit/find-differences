@@ -14,8 +14,9 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import * as WebBrowser from 'expo-web-browser';
 import { useI18n } from '../lib/i18n';
-import { generateGame } from '../lib/api';
+import { generateGame, startCheckout } from '../lib/api';
 import { popPendingImageUri } from '../lib/store';
 import type { GameState, Difference } from '../lib/types';
 
@@ -30,6 +31,9 @@ export default function GameScreen() {
   const [error, setError] = useState<string | null>(null);
   const [imageLayout, setImageLayout] = useState<{ w: number; h: number } | null>(null);
   const [revealed, setRevealed] = useState(false);
+  const [paying, setPaying] = useState(false); // true while Stripe Checkout is open
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [imageUri, setImageUri] = useState<string | null>(null);
   const initiated = useRef(false);
 
   useEffect(() => {
@@ -41,25 +45,73 @@ export default function GameScreen() {
       router.replace('/');
       return;
     }
-
-    generateGame(uri)
-      .then((res) => {
-        setGame({
-          originalImage: `data:image/jpeg;base64,${res.originalImage}`,
-          modifiedImage: `data:image/jpeg;base64,${res.modifiedImage}`,
-          differences: res.differences,
-          foundIndices: [],
-          totalChanges: res.totalChanges,
-          status: 'playing',
-        });
-        setLoading(false);
-      })
-      .catch((e) => {
-        console.log('generateGame error:', e.message);
-        setError(e.message || 'Failed to generate puzzle');
-        setLoading(false);
-      });
+    setImageUri(uri);
+    setLoading(false);
   }, []);
+
+  // After we get a sessionId, generate the puzzle
+  useEffect(() => {
+    if (!sessionId || !imageUri) return;
+    doGenerate(imageUri, sessionId);
+  }, [sessionId]);
+
+  const doGenerate = async (uri: string, sid: string) => {
+    setLoading(true);
+    setPaying(false);
+    setError(null);
+    try {
+      const res = await generateGame(uri, sid);
+      setGame({
+        originalImage: `data:image/jpeg;base64,${res.originalImage}`,
+        modifiedImage: `data:image/jpeg;base64,${res.modifiedImage}`,
+        differences: res.differences,
+        foundIndices: [],
+        totalChanges: res.totalChanges,
+        status: 'playing',
+      });
+      setLoading(false);
+    } catch (e: any) {
+      console.log('generateGame error:', e.message);
+      setError(e.message || 'Failed to generate puzzle');
+      setLoading(false);
+    }
+  };
+
+  const handlePay = useCallback(async () => {
+    try {
+      setPaying(true);
+      const { url } = await startCheckout();
+      const result = await WebBrowser.openAuthSessionAsync(url, 'find-differences://payment-success');
+
+      if (result.type === 'success' && result.url) {
+        const parsed = extractSessionId(result.url);
+        if (parsed) {
+          setSessionId(parsed);
+          return;
+        }
+      }
+      // Payment cancelled or failed
+      setPaying(false);
+    } catch (e: any) {
+      console.log('Payment error:', e.message);
+      setPaying(false);
+    }
+  }, []);
+
+  const handleRetry = () => {
+    setError(null);
+    if (imageUri && sessionId) {
+      doGenerate(imageUri, sessionId);
+    } else if (imageUri) {
+      setLoading(false); // back to payment state
+    } else {
+      router.replace('/');
+    }
+  };
+
+  const handlePlayAgain = () => {
+    setGame((prev) => prev ? { ...prev, foundIndices: [], status: 'playing' } : prev);
+  };
 
   const hitTest = useCallback((px: number, py: number) => {
     if (!game || !imageLayout) return;
@@ -87,42 +139,14 @@ export default function GameScreen() {
       }
     }
 
-    // Miss — feedback
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   }, [game, imageLayout]);
-
-  const handleRetry = () => {
-    setLoading(true);
-    setError(null);
-    initiated.current = false;
-    const uri = popPendingImageUri();
-    if (!uri) {
-      router.replace('/');
-      return;
-    }
-    initiated.current = true;
-    generateGame(uri)
-      .then((res) => {
-        setGame({
-          originalImage: `data:image/jpeg;base64,${res.originalImage}`,
-          modifiedImage: `data:image/jpeg;base64,${res.modifiedImage}`,
-          differences: res.differences,
-          foundIndices: [],
-          totalChanges: res.totalChanges,
-          status: 'playing',
-        });
-        setLoading(false);
-      })
-      .catch((e) => {
-        setError(e.message || 'Failed');
-        setLoading(false);
-      });
-  };
 
   const handleImageLayout = useCallback((w: number, h: number) => {
     if (!imageLayout) setImageLayout({ w, h });
   }, [imageLayout]);
 
+  // --- Loading state ---
   if (loading) {
     return (
       <View style={[styles.center, { paddingTop: insets.top }]}>
@@ -132,6 +156,44 @@ export default function GameScreen() {
     );
   }
 
+  // --- Payment state (no sessionId yet) ---
+  if (!sessionId && imageUri && !error) {
+    const screenW = Dimensions.get('window').width;
+    const previewW = screenW - 64;
+    const previewH = Math.floor(previewW * 0.75);
+
+    return (
+      <View style={[styles.center, { paddingTop: insets.top }]}>
+        <Ionicons name="lock-closed-outline" size={36} color={THEME} />
+        <Text style={styles.payTitle}>{t('payToPlay')}</Text>
+        <Text style={styles.payPrice}>$0.10</Text>
+        <Image
+          source={{ uri: imageUri }}
+          style={{ width: previewW, height: previewH, borderRadius: 12, marginVertical: 16 }}
+          resizeMode="cover"
+        />
+        <TouchableOpacity
+          style={[styles.payBtn, paying && { opacity: 0.6 }]}
+          onPress={handlePay}
+          disabled={paying}
+        >
+          {paying ? (
+            <ActivityIndicator color="#FFF" size="small" />
+          ) : (
+            <Ionicons name="card-outline" size={20} color="#FFF" />
+          )}
+          <Text style={styles.payBtnText}>
+            {paying ? t('processing') : t('payBtn')}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.cancelBtn} onPress={() => router.replace('/')}>
+          <Text style={styles.cancelBtnText}>{t('cancel')}</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  // --- Error state ---
   if (error) {
     return (
       <View style={[styles.center, { paddingTop: insets.top }]}>
@@ -149,6 +211,7 @@ export default function GameScreen() {
     );
   }
 
+  // --- Game state ---
   if (!game) return null;
 
   const progress = game.foundIndices.length / game.totalChanges;
@@ -217,7 +280,7 @@ export default function GameScreen() {
           <Ionicons name="checkmark-circle" size={48} color={THEME} />
           <Text style={styles.completedText}>{t('completed')}</Text>
           <View style={styles.buttonRow}>
-            <TouchableOpacity style={styles.retryBtn} onPress={handleRetry}>
+            <TouchableOpacity style={styles.retryBtn} onPress={handlePlayAgain}>
               <Text style={styles.retryBtnText}>{t('playAgain')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.backBtn} onPress={() => router.replace('/')}>
@@ -228,6 +291,11 @@ export default function GameScreen() {
       )}
     </View>
   );
+}
+
+function extractSessionId(url: string): string | null {
+  const match = url.match(/session_id=([^&]+)/);
+  return match ? decodeURIComponent(match[1]) : null;
 }
 
 interface PanelProps {
@@ -392,4 +460,19 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   backBtnText: { color: THEME, fontSize: 15, fontWeight: '600' },
+  payTitle: { fontSize: 20, fontWeight: '700', color: '#333', marginTop: 8 },
+  payPrice: { fontSize: 36, fontWeight: '800', color: THEME },
+  payBtn: {
+    backgroundColor: THEME,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  payBtnText: { color: '#FFF', fontSize: 17, fontWeight: '600' },
+  cancelBtn: { paddingVertical: 8 },
+  cancelBtnText: { fontSize: 15, color: '#888' },
 });

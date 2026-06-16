@@ -19,5 +19,9 @@
   "about": "关于",
   "madeBy": "Made with ❤️ by Hugo",
   "original": "原图",
-  "modified": "修改图"
+  "modified": "修改图",
+  "payToPlay": "付费解锁谜题",
+  "payBtn": "付款 $0.10",
+  "processing": "处理中...",
+  "cancel": "取消"
 }

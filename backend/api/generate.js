@@ -1,15 +1,20 @@
 const sharp = require('sharp');
 const { generateModifiedImage } = require('../lib/generateDiff');
 const { findDifferences } = require('../lib/findDifferences');
+const { verifySession, consumeSession } = require('../lib/stripe');
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   try {
-    const { image: base64Image } = req.body;
+    const { image: base64Image, sessionId } = req.body;
     if (!base64Image) {
       return res.status(400).json({ error: 'Missing "image" field' });
+    }
+
+    if (!sessionId || !(await verifySession(sessionId))) {
+      return res.status(402).json({ error: 'Payment required' });
     }
 
     const apiKey = process.env.ARK_API_KEY;
@@ -38,6 +43,9 @@ module.exports = async (req, res) => {
       .toBuffer();
 
     const differences = await findDifferences(processed, modified, apiKey);
+
+    // Only mark session as used AFTER successful generation
+    consumeSession(sessionId);
 
     return res.json({
       originalImage: processed.toString('base64'),

@@ -1,22 +1,35 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
-import type { GenerateResponse } from './types';
+import type { GenerateResponse, CheckoutResponse } from './types';
 
 // Set EXPO_PUBLIC_API_URL to override, e.g. for local development
-const API_URL =
-  process.env.EXPO_PUBLIC_API_URL ?? 'https://find-differences-m5tr.vercel.app/api/generate';
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://find-differences-m5tr.vercel.app';
+const CHECKOUT_URL = `${API_URL}/api/checkout`;
+const GENERATE_URL = `${API_URL}/api/generate`;
 
-export async function generateGame(imageUri: string): Promise<GenerateResponse> {
+export async function startCheckout(): Promise<CheckoutResponse> {
+  const res = await fetch(CHECKOUT_URL, { method: 'POST' });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function generateGame(imageUri: string, sessionId?: string): Promise<GenerateResponse> {
   // Convert HEIC to JPEG (Vercel's Sharp doesn't support HEIC)
   const converted = await manipulateAsync(imageUri, [], { format: SaveFormat.JPEG, compress: 0.85 });
   const base64 = await FileSystem.readAsStringAsync(converted.uri, {
     encoding: FileSystem.EncodingType.Base64,
   });
 
-  const res = await fetch(API_URL, {
+  const body: Record<string, string> = { image: base64 };
+  if (sessionId) body.sessionId = sessionId;
+
+  const res = await fetch(GENERATE_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ image: base64 }),
+    body: JSON.stringify(body),
   });
 
   if (!res.ok) {
