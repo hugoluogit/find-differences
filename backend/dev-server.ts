@@ -30,7 +30,7 @@ app.post('/api/checkout', async (_req, res) => {
           quantity: 1,
         },
       ],
-      success_url: 'find-differences://payment-success?session_id={CHECKOUT_SESSION_ID}',
+      success_url: 'https://find-differences-m5tr.vercel.app/api/payment-callback?session_id={CHECKOUT_SESSION_ID}',
       cancel_url: 'find-differences://payment-cancelled',
     });
 

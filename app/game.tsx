@@ -81,7 +81,8 @@ export default function GameScreen() {
     try {
       setPaying(true);
       const { url } = await startCheckout();
-      const result = await WebBrowser.openAuthSessionAsync(url, 'find-differences://payment-success');
+      const redirectUrl = 'https://find-differences-m5tr.vercel.app/api/payment-callback';
+      const result = await WebBrowser.openAuthSessionAsync(url, redirectUrl);
 
       if (result.type === 'success' && result.url) {
         const parsed = extractSessionId(result.url);
