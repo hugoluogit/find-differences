@@ -2,17 +2,24 @@
   "expo": {
     "name": "找不同",
     "slug": "find-differences",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "scheme": "find-differences",
     "splash": {
-      "backgroundColor": "#FFF0F3"
+      "image": "./assets/splash-icon.png",
+      "backgroundColor": "#FFF0F3",
+      "resizeMode": "contain"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.hugoluo.finddifferences"
+      "bundleIdentifier": "com.hugoluo.finddifferences",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "需要使用相機拍攝照片來產生找不同謎題。",
+        "NSPhotoLibraryUsageDescription": "需要存取相簿來選擇照片產生找不同謎題。"
+      }
     },
     "android": {
       "adaptiveIcon": {
