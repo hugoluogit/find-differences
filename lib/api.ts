@@ -21,11 +21,11 @@ export async function startCheckout(paymentRef: string): Promise<CheckoutRespons
   return res.json();
 }
 
-export async function confirmPayment(paymentRef: string): Promise<ConfirmPaymentResponse> {
+export async function confirmPayment(sessionId: string): Promise<ConfirmPaymentResponse> {
   const res = await fetch(CONFIRM_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ paymentRef }),
+    body: JSON.stringify({ sessionId }),
   });
   return res.json();
 }

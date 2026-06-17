@@ -25,18 +25,4 @@ function consumeSession(sessionId) {
   if (sessionId) usedSessions.add(sessionId);
 }
 
-async function findSessionByRef(paymentRef) {
-  const stripe = getStripe();
-  if (!stripe) return null;
-
-  const sessions = await stripe.checkout.sessions.list({
-    client_reference_id: paymentRef,
-    limit: 1,
-  });
-
-  const session = sessions.data?.[0];
-  if (!session || session.payment_status !== 'paid') return null;
-  return session.id;
-}
-
-module.exports = { verifySession, consumeSession, usedSessions, findSessionByRef };
+module.exports = { verifySession, consumeSession, usedSessions };

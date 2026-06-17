@@ -52,19 +52,18 @@ app.post('/api/confirm-payment', async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  const { paymentRef } = req.body || {};
-  if (!paymentRef) {
-    return res.status(400).json({ error: 'Missing paymentRef' });
+  const { sessionId } = req.body || {};
+  if (!sessionId) {
+    return res.json({ paid: false, sessionId: null });
+  }
+  if (usedSessions.has(sessionId)) {
+    return res.json({ paid: true, sessionId });
   }
 
   try {
-    const sessions = await stripe.checkout.sessions.list({
-      client_reference_id: paymentRef,
-      limit: 1,
-    });
-    const session = sessions.data?.[0];
-    if (session && session.payment_status === 'paid') {
-      return res.json({ paid: true, sessionId: session.id });
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    if (session.payment_status === 'paid') {
+      return res.json({ paid: true, sessionId });
     }
   } catch {}
   return res.json({ paid: false, sessionId: null });

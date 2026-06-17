@@ -34,7 +34,6 @@ export default function GameScreen() {
   const [paying, setPaying] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [imageUri, setImageUri] = useState<string | null>(null);
-  const [paymentRef, setPaymentRef] = useState<string | null>(null);
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const initiated = useRef(false);
 
@@ -80,12 +79,12 @@ export default function GameScreen() {
     }
   };
 
-  const pollPayment = useCallback(async (ref: string) => {
+  const pollPayment = useCallback(async (sid: string) => {
     try {
-      const result = await confirmPayment(ref);
-      if (result.paid && result.sessionId && imageUri) {
+      const result = await confirmPayment(sid);
+      if (result.paid && imageUri) {
         if (pollTimer.current) clearInterval(pollTimer.current);
-        doGenerate(imageUri, result.sessionId);
+        doGenerate(imageUri, sid);
       }
     } catch {
       // Keep polling
@@ -96,16 +95,14 @@ export default function GameScreen() {
     try {
       setPaying(true);
       setError(null);
-      // Generate a random payment reference
       const ref = Math.random().toString(36).substring(2, 15);
-      const { url } = await startCheckout(ref);
-      setPaymentRef(ref);
+      const { url, sessionId: sid } = await startCheckout(ref);
 
       // Open Stripe in Safari
       Linking.openURL(url);
 
-      // Start polling for payment confirmation
-      pollTimer.current = setInterval(() => pollPayment(ref), 2000);
+      // Start polling for payment
+      pollTimer.current = setInterval(() => pollPayment(sid), 2000);
 
       // Stop polling after 5 minutes
       setTimeout(() => {

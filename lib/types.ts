@@ -23,6 +23,7 @@ export interface GameState {
 
 export interface CheckoutResponse {
   url: string;
+  sessionId: string;
 }
 
 export interface ConfirmPaymentResponse {

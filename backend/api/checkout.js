@@ -35,7 +35,7 @@ module.exports = async (req, res) => {
       cancel_url: 'https://find-differences-m5tr.vercel.app/api/payment-callback?cancelled=1',
     });
 
-    return res.json({ url: session.url });
+    return res.json({ url: session.url, sessionId: session.id });
   } catch (error) {
     console.error('Checkout error:', error);
     return res.status(500).json({ error: error.message || 'Failed to create checkout' });
