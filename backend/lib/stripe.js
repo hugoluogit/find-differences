@@ -1,5 +1,5 @@
-// In-memory set of used session IDs (resets on cold start — acceptable for hobby)
 const usedSessions = new Set();
+const paymentRefs = new Map(); // paymentRef → { sessionId, paid }
 
 function getStripe() {
   const key = process.env.STRIPE_SECRET_KEY;
@@ -26,4 +26,31 @@ function consumeSession(sessionId) {
   if (sessionId) usedSessions.add(sessionId);
 }
 
-module.exports = { verifySession, consumeSession, usedSessions };
+function storePaymentRef(paymentRef, sessionId) {
+  paymentRefs.set(paymentRef, { sessionId, paid: false });
+  // Auto-cleanup after 1 hour
+  setTimeout(() => paymentRefs.delete(paymentRef), 3600000);
+}
+
+async function resolvePaymentRef(paymentRef) {
+  const entry = paymentRefs.get(paymentRef);
+  if (!entry) return null;
+  if (entry.paid) return entry.sessionId; // already confirmed
+
+  // Check Stripe payment status
+  const stripe = getStripe();
+  if (!stripe) return null;
+
+  try {
+    const session = await stripe.checkout.sessions.retrieve(entry.sessionId);
+    if (session.payment_status === 'paid') {
+      entry.paid = true;
+      return entry.sessionId;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+module.exports = { verifySession, consumeSession, usedSessions, storePaymentRef, resolvePaymentRef };

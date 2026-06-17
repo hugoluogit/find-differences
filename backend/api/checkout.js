@@ -1,3 +1,5 @@
+const { storePaymentRef } = require('../lib/stripe');
+
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -9,6 +11,11 @@ module.exports = async (req, res) => {
     return res.status(500).json({ error: 'Stripe not configured' });
   }
 
+  const { paymentRef } = req.body || {};
+  if (!paymentRef) {
+    return res.status(400).json({ error: 'Missing paymentRef' });
+  }
+
   try {
     const stripe = require('stripe')(secretKey);
     const session = await stripe.checkout.sessions.create({
@@ -18,14 +25,17 @@ module.exports = async (req, res) => {
           price_data: {
             currency: 'hkd',
             product_data: { name: '找不同 — 一局' },
-            unit_amount: 400, // HK$4.00 ≈ $0.51 USD (Stripe min ~400 HKD cents)
+            unit_amount: 400, // HK$4.00 ≈ $0.51 USD
           },
           quantity: 1,
         },
       ],
+      client_reference_id: paymentRef,
       success_url: 'https://find-differences-m5tr.vercel.app/api/payment-callback?session_id={CHECKOUT_SESSION_ID}',
-      cancel_url: 'find-differences://payment-cancelled',
+      cancel_url: 'https://find-differences-m5tr.vercel.app/api/payment-callback?cancelled=1',
     });
+
+    storePaymentRef(paymentRef, session.id);
 
     return res.json({ url: session.url });
   } catch (error) {

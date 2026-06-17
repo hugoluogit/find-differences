@@ -24,3 +24,8 @@ export interface GameState {
 export interface CheckoutResponse {
   url: string;
 }
+
+export interface ConfirmPaymentResponse {
+  paid: boolean;
+  sessionId: string | null;
+}

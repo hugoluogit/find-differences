@@ -14,9 +14,9 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 import { useI18n } from '../lib/i18n';
-import { generateGame, startCheckout } from '../lib/api';
+import { generateGame, startCheckout, confirmPayment } from '../lib/api';
 import { popPendingImageUri } from '../lib/store';
 import type { GameState, Difference } from '../lib/types';
 
@@ -31,9 +31,11 @@ export default function GameScreen() {
   const [error, setError] = useState<string | null>(null);
   const [imageLayout, setImageLayout] = useState<{ w: number; h: number } | null>(null);
   const [revealed, setRevealed] = useState(false);
-  const [paying, setPaying] = useState(false); // true while Stripe Checkout is open
+  const [paying, setPaying] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [paymentRef, setPaymentRef] = useState<string | null>(null);
+  const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const initiated = useRef(false);
 
   useEffect(() => {
@@ -54,6 +56,13 @@ export default function GameScreen() {
     if (!sessionId || !imageUri) return;
     doGenerate(imageUri, sessionId);
   }, [sessionId]);
+
+  // Cleanup poll timer
+  useEffect(() => {
+    return () => {
+      if (pollTimer.current) clearInterval(pollTimer.current);
+    };
+  }, []);
 
   const doGenerate = async (uri: string, sid: string) => {
     setLoading(true);
@@ -77,27 +86,43 @@ export default function GameScreen() {
     }
   };
 
+  const pollPayment = useCallback(async (ref: string) => {
+    try {
+      const result = await confirmPayment(ref);
+      if (result.paid && result.sessionId) {
+        if (pollTimer.current) clearInterval(pollTimer.current);
+        setSessionId(result.sessionId);
+      }
+    } catch {
+      // Keep polling
+    }
+  }, []);
+
   const handlePay = useCallback(async () => {
     try {
       setPaying(true);
-      const { url } = await startCheckout();
-      const redirectUrl = 'https://find-differences-m5tr.vercel.app/api/payment-callback';
-      const result = await WebBrowser.openAuthSessionAsync(url, redirectUrl);
+      setError(null);
+      // Generate a random payment reference
+      const ref = Math.random().toString(36).substring(2, 15);
+      const { url } = await startCheckout(ref);
+      setPaymentRef(ref);
 
-      if (result.type === 'success' && result.url) {
-        const parsed = extractSessionId(result.url);
-        if (parsed) {
-          setSessionId(parsed);
-          return;
-        }
-      }
-      // Payment cancelled or failed
-      setPaying(false);
+      // Open Stripe in Safari
+      Linking.openURL(url);
+
+      // Start polling for payment confirmation
+      pollTimer.current = setInterval(() => pollPayment(ref), 2000);
+
+      // Stop polling after 5 minutes
+      setTimeout(() => {
+        if (pollTimer.current) clearInterval(pollTimer.current);
+        setPaying(false);
+      }, 300000);
     } catch (e: any) {
       console.log('Payment error:', e.message);
       setPaying(false);
     }
-  }, []);
+  }, [pollPayment]);
 
   const handleRetry = () => {
     setError(null);

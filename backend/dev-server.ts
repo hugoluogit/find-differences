@@ -6,6 +6,7 @@ import { findDifferences } from './lib/findDifferences';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2025-03-31.basil' as any });
 const usedSessions = new Set<string>();
+const paymentRefs = new Map<string, { sessionId: string; paid: boolean }>();
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -13,9 +14,14 @@ const PORT = parseInt(process.env.PORT || '3000', 10);
 app.use(express.json({ limit: '10mb' }));
 
 // --- Checkout: create Stripe session ---
-app.post('/api/checkout', async (_req, res) => {
+app.post('/api/checkout', async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  const { paymentRef } = req.body || {};
+  if (!paymentRef) {
+    return res.status(400).json({ error: 'Missing paymentRef' });
+  }
 
   try {
     const session = await stripe.checkout.sessions.create({
@@ -25,20 +31,47 @@ app.post('/api/checkout', async (_req, res) => {
           price_data: {
             currency: 'hkd',
             product_data: { name: '找不同 — 一局' },
-            unit_amount: 400, // HK$4.00 ≈ $0.51 USD (Stripe min ~400 HKD cents)
+            unit_amount: 400,
           },
           quantity: 1,
         },
       ],
+      client_reference_id: paymentRef,
       success_url: 'https://find-differences-m5tr.vercel.app/api/payment-callback?session_id={CHECKOUT_SESSION_ID}',
-      cancel_url: 'find-differences://payment-cancelled',
+      cancel_url: 'https://find-differences-m5tr.vercel.app/api/payment-callback?cancelled=1',
     });
+
+    paymentRefs.set(paymentRef, { sessionId: session.id, paid: false });
 
     return res.json({ url: session.url });
   } catch (error: any) {
     console.error('Checkout error:', error);
     return res.status(500).json({ error: error.message || 'Failed to create checkout' });
   }
+});
+
+// --- Confirm payment: poll endpoint ---
+app.post('/api/confirm-payment', async (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  const { paymentRef } = req.body || {};
+  if (!paymentRef) {
+    return res.status(400).json({ error: 'Missing paymentRef' });
+  }
+
+  const entry = paymentRefs.get(paymentRef);
+  if (!entry) return res.json({ paid: false, sessionId: null });
+  if (entry.paid) return res.json({ paid: true, sessionId: entry.sessionId });
+
+  try {
+    const session = await stripe.checkout.sessions.retrieve(entry.sessionId);
+    if (session.payment_status === 'paid') {
+      entry.paid = true;
+      return res.json({ paid: true, sessionId: entry.sessionId });
+    }
+  } catch {}
+  return res.json({ paid: false, sessionId: null });
 });
 
 // --- Generate: verify payment then generate puzzle ---
