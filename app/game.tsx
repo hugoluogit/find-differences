@@ -51,12 +51,6 @@ export default function GameScreen() {
     setLoading(false);
   }, []);
 
-  // After we get a sessionId, generate the puzzle
-  useEffect(() => {
-    if (!sessionId || !imageUri) return;
-    doGenerate(imageUri, sessionId);
-  }, [sessionId]);
-
   // Cleanup poll timer
   useEffect(() => {
     return () => {
@@ -89,14 +83,14 @@ export default function GameScreen() {
   const pollPayment = useCallback(async (ref: string) => {
     try {
       const result = await confirmPayment(ref);
-      if (result.paid && result.sessionId) {
+      if (result.paid && result.sessionId && imageUri) {
         if (pollTimer.current) clearInterval(pollTimer.current);
-        setSessionId(result.sessionId);
+        doGenerate(imageUri, result.sessionId);
       }
     } catch {
       // Keep polling
     }
-  }, []);
+  }, [imageUri]);
 
   const handlePay = useCallback(async () => {
     try {
