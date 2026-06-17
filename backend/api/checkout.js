@@ -18,7 +18,7 @@ module.exports = async (req, res) => {
           price_data: {
             currency: 'usd',
             product_data: { name: '找不同 — 一局' },
-            unit_amount: 10, // $0.10
+            unit_amount: 50, // $0.50 (Stripe min ~$0.50)
           },
           quantity: 1,
         },
