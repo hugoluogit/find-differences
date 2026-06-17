@@ -1,4 +1,4 @@
-const { resolvePaymentRef } = require('../lib/stripe');
+const { findSessionByRef } = require('../lib/stripe');
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -11,7 +11,7 @@ module.exports = async (req, res) => {
     return res.status(400).json({ error: 'Missing paymentRef' });
   }
 
-  const sessionId = await resolvePaymentRef(paymentRef);
+  const sessionId = await findSessionByRef(paymentRef);
   if (!sessionId) {
     return res.json({ paid: false, sessionId: null });
   }

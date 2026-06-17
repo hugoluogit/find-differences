@@ -1,4 +1,4 @@
-const { storePaymentRef } = require('../lib/stripe');
+// Stripe lookup is done via client_reference_id, no in-memory store needed
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -34,8 +34,6 @@ module.exports = async (req, res) => {
       success_url: 'https://find-differences-m5tr.vercel.app/api/payment-callback?session_id={CHECKOUT_SESSION_ID}',
       cancel_url: 'https://find-differences-m5tr.vercel.app/api/payment-callback?cancelled=1',
     });
-
-    storePaymentRef(paymentRef, session.id);
 
     return res.json({ url: session.url });
   } catch (error) {

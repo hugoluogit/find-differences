@@ -6,7 +6,6 @@ import { findDifferences } from './lib/findDifferences';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2025-03-31.basil' as any });
 const usedSessions = new Set<string>();
-const paymentRefs = new Map<string, { sessionId: string; paid: boolean }>();
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -41,8 +40,6 @@ app.post('/api/checkout', async (req, res) => {
       cancel_url: 'https://find-differences-m5tr.vercel.app/api/payment-callback?cancelled=1',
     });
 
-    paymentRefs.set(paymentRef, { sessionId: session.id, paid: false });
-
     return res.json({ url: session.url });
   } catch (error: any) {
     console.error('Checkout error:', error);
@@ -60,15 +57,14 @@ app.post('/api/confirm-payment', async (req, res) => {
     return res.status(400).json({ error: 'Missing paymentRef' });
   }
 
-  const entry = paymentRefs.get(paymentRef);
-  if (!entry) return res.json({ paid: false, sessionId: null });
-  if (entry.paid) return res.json({ paid: true, sessionId: entry.sessionId });
-
   try {
-    const session = await stripe.checkout.sessions.retrieve(entry.sessionId);
-    if (session.payment_status === 'paid') {
-      entry.paid = true;
-      return res.json({ paid: true, sessionId: entry.sessionId });
+    const sessions = await stripe.checkout.sessions.list({
+      client_reference_id: paymentRef,
+      limit: 1,
+    });
+    const session = sessions.data?.[0];
+    if (session && session.payment_status === 'paid') {
+      return res.json({ paid: true, sessionId: session.id });
     }
   } catch {}
   return res.json({ paid: false, sessionId: null });
