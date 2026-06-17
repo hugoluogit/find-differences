@@ -19,9 +19,9 @@ function compareVersions(a: string, b: string): number {
 
 const THEME = '#FF6B8A';
 
-function UpdateBlock() {
+function AppContent() {
   const { t } = useI18n();
-  const [state, setState] = useState<'checking' | 'block' | 'ok'>('checking');
+  const [versionState, setVersionState] = useState<'checking' | 'block' | 'ok'>('checking');
 
   useEffect(() => {
     (async () => {
@@ -29,27 +29,27 @@ function UpdateBlock() {
         const currentVersion = Constants.expoConfig?.version || '0.0.0';
         const result = await checkAppVersion();
         if (compareVersions(currentVersion, result.minimumVersion) < 0) {
-          setState('block');
+          setVersionState('block');
         } else {
-          setState('ok');
+          setVersionState('ok');
         }
       } catch {
-        setState('ok');
+        setVersionState('ok');
       }
     })();
   }, []);
 
-  if (state === 'checking') {
+  if (versionState === 'checking') {
     return (
-      <View style={styles.overlay}>
+      <View style={styles.center}>
         <ActivityIndicator size="large" color={THEME} />
       </View>
     );
   }
 
-  if (state === 'block') {
+  if (versionState === 'block') {
     return (
-      <View style={styles.overlay}>
+      <View style={styles.center}>
         <Text style={styles.icon}>📲</Text>
         <Text style={styles.title}>{t('updateRequired')}</Text>
         <Text style={styles.message}>{t('updateMessage')}</Text>
@@ -63,35 +63,35 @@ function UpdateBlock() {
     );
   }
 
-  return null;
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="index" />
+      <Stack.Screen name="game" />
+      <Stack.Screen
+        name="settings"
+        options={{ presentation: 'modal', headerShown: true, headerTitle: '' }}
+      />
+    </Stack>
+  );
 }
 
 export default function RootLayout() {
   return (
     <I18nProvider>
       <StatusBar style="dark" />
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="game" />
-        <Stack.Screen
-          name="settings"
-          options={{ presentation: 'modal', headerShown: true, headerTitle: '' }}
-        />
-      </Stack>
-      <UpdateBlock />
+      <AppContent />
     </I18nProvider>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
+  center: {
+    flex: 1,
     backgroundColor: '#FFF',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 32,
     gap: 12,
-    zIndex: 999,
   },
   icon: { fontSize: 48 },
   title: { fontSize: 22, fontWeight: '700', color: '#333' },
