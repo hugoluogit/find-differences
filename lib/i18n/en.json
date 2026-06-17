@@ -23,5 +23,7 @@
   "payToPlay": "Unlock Puzzle",
   "payBtn": "Pay HK$4.00",
   "processing": "Processing...",
-  "cancel": "Cancel"
+  "cancel": "Cancel",
+  "checkPayment": "Verify Payment",
+  "checkingPayment": "Checking payment..."
 }

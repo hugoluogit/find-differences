@@ -32,9 +32,9 @@ export default function GameScreen() {
   const [imageLayout, setImageLayout] = useState<{ w: number; h: number } | null>(null);
   const [revealed, setRevealed] = useState(false);
   const [paying, setPaying] = useState(false);
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [imageUri, setImageUri] = useState<string | null>(null);
-  const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const initiated = useRef(false);
 
   useEffect(() => {
@@ -50,16 +50,10 @@ export default function GameScreen() {
     setLoading(false);
   }, []);
 
-  // Cleanup poll timer
-  useEffect(() => {
-    return () => {
-      if (pollTimer.current) clearInterval(pollTimer.current);
-    };
-  }, []);
-
   const doGenerate = async (uri: string, sid: string) => {
     setLoading(true);
     setPaying(false);
+    setChecking(false);
     setError(null);
     try {
       const res = await generateGame(uri, sid);
@@ -79,48 +73,43 @@ export default function GameScreen() {
     }
   };
 
-  const pollPayment = useCallback(async (sid: string) => {
-    try {
-      const result = await confirmPayment(sid);
-      if (result.paid && imageUri) {
-        if (pollTimer.current) clearInterval(pollTimer.current);
-        doGenerate(imageUri, sid);
-      }
-    } catch {
-      // Keep polling
-    }
-  }, [imageUri]);
-
   const handlePay = useCallback(async () => {
     try {
       setPaying(true);
       setError(null);
       const ref = Math.random().toString(36).substring(2, 15);
       const { url, sessionId: sid } = await startCheckout(ref);
-
-      // Open Stripe in Safari
+      setCurrentSessionId(sid);
+      setPaying(false);
       Linking.openURL(url);
-
-      // Start polling for payment
-      pollTimer.current = setInterval(() => pollPayment(sid), 2000);
-
-      // Stop polling after 5 minutes
-      setTimeout(() => {
-        if (pollTimer.current) clearInterval(pollTimer.current);
-        setPaying(false);
-      }, 300000);
     } catch (e: any) {
       console.log('Payment error:', e.message);
       setPaying(false);
     }
-  }, [pollPayment]);
+  }, []);
+
+  const handleCheckPayment = useCallback(async () => {
+    if (!currentSessionId || !imageUri) return;
+    setChecking(true);
+    setError(null);
+    try {
+      const result = await confirmPayment(currentSessionId);
+      if (result.paid) {
+        doGenerate(imageUri, currentSessionId);
+      } else {
+        setChecking(false);
+      }
+    } catch {
+      setChecking(false);
+    }
+  }, [currentSessionId, imageUri]);
 
   const handleRetry = () => {
     setError(null);
-    if (imageUri && sessionId) {
-      doGenerate(imageUri, sessionId);
+    if (imageUri && currentSessionId) {
+      doGenerate(imageUri, currentSessionId);
     } else if (imageUri) {
-      setLoading(false); // back to payment state
+      setLoading(false);
     } else {
       router.replace('/');
     }
@@ -173,15 +162,16 @@ export default function GameScreen() {
     );
   }
 
-  // --- Payment state (no sessionId yet) ---
-  if (!sessionId && imageUri && !error) {
+  // --- Payment / Awaiting payment state ---
+  if (imageUri && !game && !error) {
     const screenW = Dimensions.get('window').width;
     const previewW = screenW - 64;
     const previewH = Math.floor(previewW * 0.75);
+    const awaitingPayment = currentSessionId !== null;
 
     return (
       <View style={[styles.center, { paddingTop: insets.top }]}>
-        <Ionicons name="lock-closed-outline" size={36} color={THEME} />
+        <Ionicons name={awaitingPayment ? "hourglass-outline" : "lock-closed-outline"} size={36} color={THEME} />
         <Text style={styles.payTitle}>{t('payToPlay')}</Text>
         <Text style={styles.payPrice}>HK$4.00</Text>
         <Image
@@ -189,23 +179,47 @@ export default function GameScreen() {
           style={{ width: previewW, height: previewH, borderRadius: 12, marginVertical: 16 }}
           resizeMode="cover"
         />
-        <TouchableOpacity
-          style={[styles.payBtn, paying && { opacity: 0.6 }]}
-          onPress={handlePay}
-          disabled={paying}
-        >
-          {paying ? (
-            <ActivityIndicator color="#FFF" size="small" />
-          ) : (
-            <Ionicons name="card-outline" size={20} color="#FFF" />
-          )}
-          <Text style={styles.payBtnText}>
-            {paying ? t('processing') : t('payBtn')}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.cancelBtn} onPress={() => router.replace('/')}>
-          <Text style={styles.cancelBtnText}>{t('cancel')}</Text>
-        </TouchableOpacity>
+        {awaitingPayment ? (
+          <>
+            <TouchableOpacity
+              style={[styles.payBtn, checking && { opacity: 0.6 }]}
+              onPress={handleCheckPayment}
+              disabled={checking}
+            >
+              {checking ? (
+                <ActivityIndicator color="#FFF" size="small" />
+              ) : (
+                <Ionicons name="checkmark-circle-outline" size={20} color="#FFF" />
+              )}
+              <Text style={styles.payBtnText}>
+                {checking ? t('checkingPayment') : t('checkPayment')}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.cancelBtn} onPress={() => { setCurrentSessionId(null); setError(null); }}>
+              <Text style={styles.cancelBtnText}>{t('cancel')}</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            <TouchableOpacity
+              style={[styles.payBtn, paying && { opacity: 0.6 }]}
+              onPress={handlePay}
+              disabled={paying}
+            >
+              {paying ? (
+                <ActivityIndicator color="#FFF" size="small" />
+              ) : (
+                <Ionicons name="card-outline" size={20} color="#FFF" />
+              )}
+              <Text style={styles.payBtnText}>
+                {paying ? t('processing') : t('payBtn')}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.cancelBtn} onPress={() => router.replace('/')}>
+              <Text style={styles.cancelBtnText}>{t('cancel')}</Text>
+            </TouchableOpacity>
+          </>
+        )}
       </View>
     );
   }

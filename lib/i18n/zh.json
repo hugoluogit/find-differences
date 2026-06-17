@@ -23,5 +23,7 @@
   "payToPlay": "付费解锁谜题",
   "payBtn": "付款 HK$4.00",
   "processing": "处理中...",
-  "cancel": "取消"
+  "cancel": "取消",
+  "checkPayment": "检查付款状态",
+  "checkingPayment": "正在确认付款..."
 }
