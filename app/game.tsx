@@ -166,7 +166,7 @@ export default function GameScreen() {
       <View style={[styles.center, { paddingTop: insets.top }]}>
         <Ionicons name="lock-closed-outline" size={36} color={THEME} />
         <Text style={styles.payTitle}>{t('payToPlay')}</Text>
-        <Text style={styles.payPrice}>$0.50</Text>
+        <Text style={styles.payPrice}>HK$4.00</Text>
         <Image
           source={{ uri: imageUri }}
           style={{ width: previewW, height: previewH, borderRadius: 12, marginVertical: 16 }}

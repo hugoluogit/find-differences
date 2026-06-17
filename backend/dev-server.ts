@@ -23,9 +23,9 @@ app.post('/api/checkout', async (_req, res) => {
       line_items: [
         {
           price_data: {
-            currency: 'usd',
+            currency: 'hkd',
             product_data: { name: '找不同 — 一局' },
-            unit_amount: 50, // $0.50 (Stripe min ~$0.50)
+            unit_amount: 400, // HK$4.00 ≈ $0.51 USD (Stripe min ~400 HKD cents)
           },
           quantity: 1,
         },
