@@ -25,5 +25,8 @@
   "processing": "处理中...",
   "cancel": "取消",
   "checkPayment": "检查付款状态",
-  "checkingPayment": "正在确认付款..."
+  "checkingPayment": "正在确认付款...",
+  "updateRequired": "需要更新",
+  "updateMessage": "此版本已不再支持，请安装最新版本后继续使用。",
+  "updateNow": "查看更新"
 }

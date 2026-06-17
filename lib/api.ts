@@ -1,12 +1,13 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
-import type { GenerateResponse, CheckoutResponse, ConfirmPaymentResponse } from './types';
+import type { GenerateResponse, CheckoutResponse, ConfirmPaymentResponse, AppVersionResponse } from './types';
 
 // Set EXPO_PUBLIC_API_URL to override, e.g. for local development
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://find-differences-m5tr.vercel.app';
 const CHECKOUT_URL = `${API_URL}/api/checkout`;
 const GENERATE_URL = `${API_URL}/api/generate`;
 const CONFIRM_URL = `${API_URL}/api/confirm-payment`;
+const APP_VERSION_URL = `${API_URL}/api/app-version`;
 
 export async function startCheckout(paymentRef: string): Promise<CheckoutResponse> {
   const res = await fetch(CHECKOUT_URL, {
@@ -51,5 +52,13 @@ export async function generateGame(imageUri: string, sessionId?: string): Promis
     throw new Error(text || `HTTP ${res.status}`);
   }
 
+  return res.json();
+}
+
+export async function checkAppVersion(): Promise<AppVersionResponse> {
+  const res = await fetch(APP_VERSION_URL);
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}`);
+  }
   return res.json();
 }

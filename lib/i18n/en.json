@@ -25,5 +25,8 @@
   "processing": "Processing...",
   "cancel": "Cancel",
   "checkPayment": "Verify Payment",
-  "checkingPayment": "Checking payment..."
+  "checkingPayment": "Checking payment...",
+  "updateRequired": "Update Required",
+  "updateMessage": "This version is no longer supported. Please install the latest version to continue.",
+  "updateNow": "Check for Updates"
 }

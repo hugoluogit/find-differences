@@ -30,3 +30,7 @@ export interface ConfirmPaymentResponse {
   paid: boolean;
   sessionId: string | null;
 }
+
+export interface AppVersionResponse {
+  minimumVersion: string;
+}
