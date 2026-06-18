@@ -15,10 +15,10 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.hugoluo.finddifferences",
-      "buildNumber": "1",
       "infoPlist": {
         "NSCameraUsageDescription": "需要使用相機拍攝照片來產生找不同謎題。",
-        "NSPhotoLibraryUsageDescription": "需要存取相簿來選擇照片產生找不同謎題。"
+        "NSPhotoLibraryUsageDescription": "需要存取相簿來選擇照片產生找不同謎題。",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -37,6 +37,12 @@
     "owner": "hugoluo",
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "195fef30-8352-4e70-b6e6-72258ec8c46e"
+      }
     }
   }
 }

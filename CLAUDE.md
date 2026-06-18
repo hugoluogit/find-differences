@@ -35,3 +35,9 @@ React Native (Expo) 找不同遊戲 App。
 ## Environment Variables
 - EXPO_PUBLIC_API_URL — 後端 API 位址（app 端）
 - MODELSLAB_API_KEY — ModelsLab API key（後端，https://modelslab.com）
+- MINIMUM_APP_VERSION — 最低支援版本，低於此版本的 App 會被強制阻擋（後端，預設 "1.0.0"）
+
+## Force Update
+- App 啟動時檢查 `GET /api/app-version` 回傳的 `minimumVersion`
+- 若 `app.json` 中的 `version` 低於 `minimumVersion`，顯示全螢幕阻擋畫面
+- 要強制更新時：在 Vercel 設定環境變數 `MINIMUM_APP_VERSION` 為新版號
