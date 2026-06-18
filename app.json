@@ -34,6 +34,7 @@
     "plugins": [
       "expo-router"
     ],
+    "owner": "hugoluo",
     "web": {
       "favicon": "./assets/favicon.png"
     }
