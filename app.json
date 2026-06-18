@@ -32,7 +32,17 @@
       "predictiveBackGestureEnabled": false
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "swiftVersion": "5.0",
+            "deploymentTarget": "16.4"
+          }
+        }
+      ],
+      "./plugins/withSwiftSupport"
     ],
     "owner": "hugoluo",
     "web": {
