@@ -1,0 +1,14 @@
+diff --git a/node_modules/xcode/lib/pbxWriter.js b/node_modules/xcode/lib/pbxWriter.js
+index d297bc7..a0627d3 100644
+--- a/node_modules/xcode/lib/pbxWriter.js
++++ b/node_modules/xcode/lib/pbxWriter.js
+@@ -69,6 +69,9 @@ pbxWriter.prototype.write = function (str) {
+     var fmt = f.apply(null, arguments);
+ 
+     if (this.sync) {
++        // Quote keys with [sdk=...] conditional syntax (e.g. EXCLUDED_ARCHS[sdk=macosx*])
++        // to prevent pbxproj parser errors from unquoted brackets in key names
++        fmt = fmt.replace(/^(\s*)([A-Z_]+\[[^\]]*\])(\s*=)/, '$1"$2"$3');
+         this.buffer += f("%s%s", i(this.indentLevel), fmt);
+     } else {
+         // do stream write

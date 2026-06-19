@@ -12,8 +12,7 @@
       "distribution": "internal"
     },
     "production": {
-      "autoIncrement": true,
-      "prebuildCommand": "npx expo prebuild --clean --platform ios && node scripts/fix-pbxproj.js"
+      "autoIncrement": true
     }
   },
   "submit": {
