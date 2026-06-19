@@ -2,6 +2,12 @@ const fs = require('fs');
 const path = require('path');
 
 const pbxprojPath = path.join(__dirname, '..', 'ios', 'app.xcodeproj', 'project.pbxproj');
+
+if (!fs.existsSync(pbxprojPath)) {
+  console.error('pbxproj not found at', pbxprojPath);
+  process.exit(1);
+}
+
 let content = fs.readFileSync(pbxprojPath, 'utf8');
 
 const marker = 'EXCLUDED_ARCHS[sdk=macosx*]';

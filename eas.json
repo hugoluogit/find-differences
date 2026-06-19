@@ -13,7 +13,7 @@
     },
     "production": {
       "autoIncrement": true,
-      "prebuildCommand": "npx expo prebuild && node scripts/fix-pbxproj.js"
+      "prebuildCommand": "npx expo prebuild --clean --platform ios && node scripts/fix-pbxproj.js"
     }
   },
   "submit": {
