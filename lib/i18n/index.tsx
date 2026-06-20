@@ -62,7 +62,12 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const t = useCallback(
-    (key: string) => translations[locale]?.[key] ?? key,
+    (key: string) => {
+      const current = translations[locale]?.[key] ?? key;
+      if (locale === 'en') return current;
+      const english = translations.en?.[key] ?? key;
+      return `${current} / ${english}`;
+    },
     [locale],
   );
 

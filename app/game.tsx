@@ -7,7 +7,6 @@ import {
   TouchableWithoutFeedback,
   StyleSheet,
   ActivityIndicator,
-  LayoutChangeEvent,
   Dimensions,
 } from 'react-native';
 import { router } from 'expo-router';
@@ -152,103 +151,188 @@ export default function GameScreen() {
     if (!imageLayout) setImageLayout({ w, h });
   }, [imageLayout]);
 
-  // --- Loading state ---
+  // Each state returns a different component TYPE so React
+  // fully unmounts the old tree before mounting the new one.
+  // This prevents any accidental image crossover between states.
+
   if (loading) {
-    return (
-      <View style={[styles.center, { paddingTop: insets.top }]}>
-        <ActivityIndicator size="large" color={THEME} />
-        <Text style={styles.loadingLabel}>{t('generating')}</Text>
-      </View>
-    );
+    return <LoadingScreen insetsTop={insets.top} t={t} />;
   }
 
-  // --- Payment / Awaiting payment state ---
   if (imageUri && !game && !error) {
-    const screenW = Dimensions.get('window').width;
-    const previewW = screenW - 64;
-    const previewH = Math.floor(previewW * 0.75);
-    const awaitingPayment = currentSessionId !== null;
-
     return (
-      <View style={[styles.center, { paddingTop: insets.top }]}>
-        <Ionicons name={awaitingPayment ? "hourglass-outline" : "lock-closed-outline"} size={36} color={THEME} />
-        <Text style={styles.payTitle}>{t('payToPlay')}</Text>
-        <Text style={styles.payPrice}>HK$4.00</Text>
-        <Image
-          source={{ uri: imageUri }}
-          style={{ width: previewW, height: previewH, borderRadius: 12, marginVertical: 16 }}
-          resizeMode="cover"
-        />
-        {awaitingPayment ? (
-          <>
-            <TouchableOpacity
-              style={[styles.payBtn, checking && { opacity: 0.6 }]}
-              onPress={handleCheckPayment}
-              disabled={checking}
-            >
-              {checking ? (
-                <ActivityIndicator color="#FFF" size="small" />
-              ) : (
-                <Ionicons name="checkmark-circle-outline" size={20} color="#FFF" />
-              )}
-              <Text style={styles.payBtnText}>
-                {checking ? t('checkingPayment') : t('checkPayment')}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.cancelBtn} onPress={() => { setCurrentSessionId(null); setError(null); }}>
-              <Text style={styles.cancelBtnText}>{t('cancel')}</Text>
-            </TouchableOpacity>
-          </>
-        ) : (
-          <>
-            <TouchableOpacity
-              style={[styles.payBtn, paying && { opacity: 0.6 }]}
-              onPress={handlePay}
-              disabled={paying}
-            >
-              {paying ? (
-                <ActivityIndicator color="#FFF" size="small" />
-              ) : (
-                <Ionicons name="card-outline" size={20} color="#FFF" />
-              )}
-              <Text style={styles.payBtnText}>
-                {paying ? t('processing') : t('payBtn')}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.cancelBtn} onPress={() => router.replace('/')}>
-              <Text style={styles.cancelBtnText}>{t('cancel')}</Text>
-            </TouchableOpacity>
-          </>
-        )}
-      </View>
+      <PaymentScreen
+        insetsTop={insets.top}
+        t={t}
+        imageUri={imageUri}
+        currentSessionId={currentSessionId}
+        paying={paying}
+        checking={checking}
+        onPay={handlePay}
+        onCheckPayment={handleCheckPayment}
+        onCancel={() => { setCurrentSessionId(null); setError(null); }}
+        onCancelNav={() => router.replace('/')}
+      />
     );
   }
 
-  // --- Error state ---
   if (error) {
-    return (
-      <View style={[styles.center, { paddingTop: insets.top }]}>
-        <Ionicons name="alert-circle-outline" size={48} color="#FF6B6B" />
-        <Text style={styles.errorText}>{error}</Text>
-        <View style={styles.buttonRow}>
-          <TouchableOpacity style={styles.retryBtn} onPress={handleRetry}>
-            <Text style={styles.retryBtnText}>{t('playAgain')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.replace('/')}>
-            <Text style={styles.backBtnText}>{t('newPhoto')}</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
+    return <ErrorScreen insetsTop={insets.top} t={t} error={error} onRetry={handleRetry} onBack={() => router.replace('/')} />;
   }
 
-  // --- Game state ---
   if (!game) return null;
 
+  return (
+    <GamePlayScreen
+      insetsTop={insets.top}
+      t={t}
+      game={game}
+      revealed={revealed}
+      onReveal={() => setRevealed(true)}
+      onBack={() => router.replace('/')}
+      onPlayAgain={handlePlayAgain}
+      hitTest={hitTest}
+      imageLayout={imageLayout}
+      onImageLayout={handleImageLayout}
+    />
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Separate component per state — each is a distinct React type, so transitions
+// always trigger a clean unmount → remount cycle, never View-in-place update.
+// ---------------------------------------------------------------------------
+
+function LoadingScreen({ insetsTop, t }: { insetsTop: number; t: (k: string) => string }) {
+  return (
+    <View style={[styles.center, { paddingTop: insetsTop }]}>
+      <ActivityIndicator size="large" color={THEME} />
+      <Text style={styles.loadingLabel}>{t('generating')}</Text>
+    </View>
+  );
+}
+
+interface PaymentScreenProps {
+  insetsTop: number;
+  t: (k: string) => string;
+  imageUri: string;
+  currentSessionId: string | null;
+  paying: boolean;
+  checking: boolean;
+  onPay: () => void;
+  onCheckPayment: () => void;
+  onCancel: () => void;
+  onCancelNav: () => void;
+}
+
+function PaymentScreen({
+  insetsTop, t, imageUri, currentSessionId,
+  paying, checking,
+  onPay, onCheckPayment, onCancel, onCancelNav,
+}: PaymentScreenProps) {
+  const screenW = Dimensions.get('window').width;
+  const previewW = screenW - 64;
+  const previewH = Math.floor(previewW * 0.75);
+  const awaitingPayment = currentSessionId !== null;
+
+  return (
+    <View style={[styles.center, { paddingTop: insetsTop }]}>
+      <Ionicons name={awaitingPayment ? "hourglass-outline" : "lock-closed-outline"} size={36} color={THEME} />
+      <Text style={styles.payTitle}>{t('payToPlay')}</Text>
+      <Text style={styles.payPrice}>HK$4.00</Text>
+      <Image
+        source={{ uri: imageUri }}
+        style={{ width: previewW, height: previewH, borderRadius: 12, marginVertical: 16 }}
+        resizeMode="cover"
+      />
+      {awaitingPayment ? (
+        <>
+          <TouchableOpacity
+            style={[styles.payBtn, checking && { opacity: 0.6 }]}
+            onPress={onCheckPayment}
+            disabled={checking}
+          >
+            {checking ? (
+              <ActivityIndicator color="#FFF" size="small" />
+            ) : (
+              <Ionicons name="checkmark-circle-outline" size={20} color="#FFF" />
+            )}
+            <Text style={styles.payBtnText}>
+              {checking ? t('checkingPayment') : t('checkPayment')}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.cancelBtn} onPress={onCancel}>
+            <Text style={styles.cancelBtnText}>{t('cancel')}</Text>
+          </TouchableOpacity>
+        </>
+      ) : (
+        <>
+          <TouchableOpacity
+            style={[styles.payBtn, paying && { opacity: 0.6 }]}
+            onPress={onPay}
+            disabled={paying}
+          >
+            {paying ? (
+              <ActivityIndicator color="#FFF" size="small" />
+            ) : (
+              <Ionicons name="card-outline" size={20} color="#FFF" />
+            )}
+            <Text style={styles.payBtnText}>
+              {paying ? t('processing') : t('payBtn')}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.cancelBtn} onPress={onCancelNav}>
+            <Text style={styles.cancelBtnText}>{t('cancel')}</Text>
+          </TouchableOpacity>
+        </>
+      )}
+    </View>
+  );
+}
+
+function ErrorScreen({
+  insetsTop, t, error, onRetry, onBack,
+}: {
+  insetsTop: number; t: (k: string) => string; error: string;
+  onRetry: () => void; onBack: () => void;
+}) {
+  return (
+    <View style={[styles.center, { paddingTop: insetsTop }]}>
+      <Ionicons name="alert-circle-outline" size={48} color="#FF6B6B" />
+      <Text style={styles.errorText}>{error}</Text>
+      <View style={styles.buttonRow}>
+        <TouchableOpacity style={styles.retryBtn} onPress={onRetry}>
+          <Text style={styles.retryBtnText}>{t('playAgain')}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.backBtn} onPress={onBack}>
+          <Text style={styles.backBtnText}>{t('newPhoto')}</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+interface GamePlayScreenProps {
+  insetsTop: number;
+  t: (k: string) => string;
+  game: GameState;
+  revealed: boolean;
+  onReveal: () => void;
+  onBack: () => void;
+  onPlayAgain: () => void;
+  hitTest: (px: number, py: number) => void;
+  imageLayout: { w: number; h: number } | null;
+  onImageLayout: (w: number, h: number) => void;
+}
+
+function GamePlayScreen({
+  insetsTop, t, game, revealed, onReveal, onBack, onPlayAgain,
+  hitTest, imageLayout, onImageLayout,
+}: GamePlayScreenProps) {
   const progress = game.foundIndices.length / game.totalChanges;
   const screenW = Dimensions.get('window').width;
   const imgW = screenW - 32;
-  const availableH = Dimensions.get('window').height - insets.top - 60 - 20 - 16;
+  const availableH = Dimensions.get('window').height - insetsTop - 60 - 20 - 16;
   const imgH = Math.floor((availableH - 8) / 2);
   const diffMarkers = revealed
     ? game.differences
@@ -258,9 +342,9 @@ export default function GameScreen() {
     : game.foundIndices;
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insetsTop }]}>
       <View style={styles.hud}>
-        <TouchableOpacity onPress={() => router.replace('/')} hitSlop={12}>
+        <TouchableOpacity onPress={onBack} hitSlop={12}>
           <Ionicons name="chevron-back" size={26} color="#333" />
         </TouchableOpacity>
         <View style={styles.hudCenter}>
@@ -268,12 +352,8 @@ export default function GameScreen() {
             {t('found')} {game.foundIndices.length} {t('of')} {game.totalChanges}
           </Text>
         </View>
-        <TouchableOpacity
-          onPress={() => setRevealed(true)}
-          style={styles.revealBtn}
-          hitSlop={8}
-        >
-          <Text style={styles.revealBtnText}>答案</Text>
+        <TouchableOpacity onPress={onReveal} style={styles.revealBtn} hitSlop={8}>
+          <Text style={styles.revealBtnText}>{t('reveal')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -287,7 +367,7 @@ export default function GameScreen() {
           source={game.originalImage}
           label={t('original')}
           onTap={hitTest}
-          onLayout={handleImageLayout}
+          onLayout={onImageLayout}
           width={imgW}
           height={imgH}
           markers={diffMarkers}
@@ -311,10 +391,10 @@ export default function GameScreen() {
           <Ionicons name="checkmark-circle" size={48} color={THEME} />
           <Text style={styles.completedText}>{t('completed')}</Text>
           <View style={styles.buttonRow}>
-            <TouchableOpacity style={styles.retryBtn} onPress={handlePlayAgain}>
+            <TouchableOpacity style={styles.retryBtn} onPress={onPlayAgain}>
               <Text style={styles.retryBtnText}>{t('playAgain')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.backBtn} onPress={() => router.replace('/')}>
+            <TouchableOpacity style={styles.backBtn} onPress={onBack}>
               <Text style={styles.backBtnText}>{t('newPhoto')}</Text>
             </TouchableOpacity>
           </View>
