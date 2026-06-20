@@ -25,7 +25,7 @@
   "payBtn": "付款 HK$4.00",
   "processing": "處理中...",
   "cancel": "取消",
-  "checkPayment": "檢查付款狀態",
+  "checkPayment": "付款完成，開始遊戲",
   "checkingPayment": "正在確認付款...",
   "updateRequired": "需要更新",
   "updateMessage": "此版本已不再支援，請安裝最新版本後繼續使用。",

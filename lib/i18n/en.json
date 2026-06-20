@@ -25,7 +25,7 @@
   "payBtn": "Pay HK$4.00",
   "processing": "Processing...",
   "cancel": "Cancel",
-  "checkPayment": "Verify Payment",
+  "checkPayment": "Payment Complete, Start Game",
   "checkingPayment": "Checking payment...",
   "updateRequired": "Update Required",
   "updateMessage": "This version is no longer supported. Please install the latest version to continue.",

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, memo, useCallback } from 'react';
+import { useState, useEffect, useRef, memo, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -29,12 +29,15 @@ export default function GameScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [imageLayout, setImageLayout] = useState<{ w: number; h: number } | null>(null);
+  const [imageSize, setImageSize] = useState<{ w: number; h: number } | null>(null);
   const [revealed, setRevealed] = useState(false);
   const [paying, setPaying] = useState(false);
   const [checking, setChecking] = useState(false);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const savedUri = useRef<string | null>(null);
   const initiated = useRef(false);
+  const gameRenderKey = useRef(0);
 
   useEffect(() => {
     if (initiated.current) return;
@@ -50,10 +53,17 @@ export default function GameScreen() {
   }, []);
 
   const doGenerate = async (uri: string, sid: string) => {
-    setLoading(true);
+    savedUri.current = uri;
+    setImageUri(null);
     setPaying(false);
     setChecking(false);
     setError(null);
+    // Let React commit null render (imageUri=null,loading=false,game=null → returns null)
+    // so ALL native Image views are fully released before we proceed
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    setLoading(true);
+    await new Promise(resolve => requestAnimationFrame(resolve));
+
     try {
       const res = await generateGame(uri, sid);
       setGame({
@@ -94,6 +104,7 @@ export default function GameScreen() {
     try {
       const result = await confirmPayment(currentSessionId);
       if (result.paid) {
+        savedUri.current = imageUri;
         doGenerate(imageUri, currentSessionId);
       } else {
         setChecking(false);
@@ -105,9 +116,10 @@ export default function GameScreen() {
 
   const handleRetry = () => {
     setError(null);
-    if (imageUri && currentSessionId) {
-      doGenerate(imageUri, currentSessionId);
-    } else if (imageUri) {
+    const uri = savedUri.current || imageUri;
+    if (uri && currentSessionId) {
+      doGenerate(uri, currentSessionId);
+    } else if (uri) {
       setLoading(false);
     } else {
       router.replace('/');
@@ -118,10 +130,26 @@ export default function GameScreen() {
     setGame((prev) => prev ? { ...prev, foundIndices: [], status: 'playing' } : prev);
   };
 
+  /** Convert container-relative px to image-relative %, accounting for letterbox */
+  const toImagePct = useCallback((px: number, py: number) => {
+    if (!imageLayout || !imageSize) return null;
+    const cw = imageLayout.w, ch = imageLayout.h;
+    const iw = imageSize.w, ih = imageSize.h;
+    const renderW = Math.min(cw, ch * (iw / ih));
+    const renderH = Math.min(ch, cw / (iw / ih));
+    const offsetX = (cw - renderW) / 2;
+    const offsetY = (ch - renderH) / 2;
+    const xPct = (px - offsetX) / renderW;
+    const yPct = (py - offsetY) / renderH;
+    if (xPct < 0 || xPct > 1 || yPct < 0 || yPct > 1) return null;
+    return { xPct, yPct };
+  }, [imageLayout, imageSize]);
+
   const hitTest = useCallback((px: number, py: number) => {
-    if (!game || !imageLayout) return;
-    const xPct = px / imageLayout.w;
-    const yPct = py / imageLayout.h;
+    if (!game) return;
+    const pct = toImagePct(px, py);
+    if (!pct) return;
+    const { xPct, yPct } = pct;
 
     for (let i = 0; i < game.differences.length; i++) {
       if (game.foundIndices.includes(i)) continue;
@@ -145,7 +173,11 @@ export default function GameScreen() {
     }
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  }, [game, imageLayout]);
+  }, [game, toImagePct]);
+
+  const handleImageLoad = useCallback((w: number, h: number) => {
+    if (!imageSize) setImageSize({ w, h });
+  }, [imageSize]);
 
   const handleImageLayout = useCallback((w: number, h: number) => {
     if (!imageLayout) setImageLayout({ w, h });
@@ -194,6 +226,8 @@ export default function GameScreen() {
       hitTest={hitTest}
       imageLayout={imageLayout}
       onImageLayout={handleImageLayout}
+      onImageLoad={handleImageLoad}
+      imageSize={imageSize}
     />
   );
 }
@@ -240,11 +274,14 @@ function PaymentScreen({
       <Ionicons name={awaitingPayment ? "hourglass-outline" : "lock-closed-outline"} size={36} color={THEME} />
       <Text style={styles.payTitle}>{t('payToPlay')}</Text>
       <Text style={styles.payPrice}>HK$4.00</Text>
-      <Image
-        source={{ uri: imageUri }}
-        style={{ width: previewW, height: previewH, borderRadius: 12, marginVertical: 16 }}
-        resizeMode="cover"
-      />
+      <View>
+        <Image
+          source={{ uri: imageUri }}
+          style={{ width: previewW, height: previewH, borderRadius: 12, marginVertical: 16 }}
+          resizeMode="cover"
+        />
+        <View style={{ position:'absolute', top:8, right:8, backgroundColor:'blue', width:32, height:32, borderRadius:16, alignItems:'center', justifyContent:'center' }}><Text style={{ color:'#FFF', fontWeight:'800', fontSize:18 }}>P</Text></View>
+      </View>
       {awaitingPayment ? (
         <>
           <TouchableOpacity
@@ -323,11 +360,13 @@ interface GamePlayScreenProps {
   hitTest: (px: number, py: number) => void;
   imageLayout: { w: number; h: number } | null;
   onImageLayout: (w: number, h: number) => void;
+  onImageLoad: (w: number, h: number) => void;
+  imageSize: { w: number; h: number } | null;
 }
 
 function GamePlayScreen({
   insetsTop, t, game, revealed, onReveal, onBack, onPlayAgain,
-  hitTest, imageLayout, onImageLayout,
+  hitTest, imageLayout, onImageLayout, onImageLoad, imageSize,
 }: GamePlayScreenProps) {
   const progress = game.foundIndices.length / game.totalChanges;
   const screenW = Dimensions.get('window').width;
@@ -340,6 +379,18 @@ function GamePlayScreen({
   const diffOffsets = revealed
     ? game.differences.map((_, i) => i)
     : game.foundIndices;
+
+  // Calculate rendered image area within the container (letterbox-aware)
+  const imgRender = useMemo(() => {
+    if (!imageSize) return null;
+    const cw = imgW, ch = imgH;
+    const iw = imageSize.w, ih = imageSize.h;
+    const renderW = Math.min(cw, ch * (iw / ih));
+    const renderH = Math.min(ch, cw / (iw / ih));
+    const offsetX = (cw - renderW) / 2;
+    const offsetY = (ch - renderH) / 2;
+    return { renderW, renderH, offsetX, offsetY };
+  }, [imageSize, imgW, imgH]);
 
   return (
     <View style={[styles.container, { paddingTop: insetsTop }]}>
@@ -368,10 +419,12 @@ function GamePlayScreen({
           label={t('original')}
           onTap={hitTest}
           onLayout={onImageLayout}
+          onImageLoad={onImageLoad}
           width={imgW}
           height={imgH}
           markers={diffMarkers}
           markerOffsets={diffOffsets}
+          imgRender={imgRender}
         />
         <ImagePanelMemo
           key="modified"
@@ -379,10 +432,12 @@ function GamePlayScreen({
           label={t('modified')}
           onTap={hitTest}
           onLayout={() => {}}
+          onImageLoad={() => {}}
           width={imgW}
           height={imgH}
           markers={diffMarkers}
           markerOffsets={diffOffsets}
+          imgRender={imgRender}
         />
       </View>
 
@@ -414,10 +469,12 @@ interface PanelProps {
   label: string;
   onTap: (px: number, py: number) => void;
   onLayout: (w: number, h: number) => void;
+  onImageLoad: (w: number, h: number) => void;
   width: number;
   height: number;
   markers: Difference[];
   markerOffsets: number[];
+  imgRender: { offsetX: number; offsetY: number; renderW: number; renderH: number } | null;
 }
 
 function ImagePanel({
@@ -425,10 +482,12 @@ function ImagePanel({
   label,
   onTap,
   onLayout,
+  onImageLoad,
   width,
   height,
   markers,
   markerOffsets,
+  imgRender,
 }: PanelProps) {
   return (
     <TouchableWithoutFeedback
@@ -439,19 +498,23 @@ function ImagePanel({
           source={{ uri: source }}
           style={{ width, height }}
           onLayout={() => onLayout(width, height)}
+          onLoad={(e) => {
+            const { width: iw, height: ih } = e.nativeEvent.source;
+            onImageLoad(iw, ih);
+          }}
           resizeMode="contain"
         />
         <View style={styles.imgLabel}>
           <Text style={styles.imgLabelText}>{label}</Text>
         </View>
-        {markers.map((d, i) => (
+        {imgRender && markers.map((d, i) => (
           <View
             key={i}
             style={[
               styles.marker,
               {
-                left: d.x * width - 75,
-                top: d.y * height - 75,
+                left: imgRender.offsetX + d.x * imgRender.renderW - 75,
+                top: imgRender.offsetY + d.y * imgRender.renderH - 75,
               },
             ]}
           >
