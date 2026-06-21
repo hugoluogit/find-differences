@@ -19,7 +19,7 @@ async function planChanges(imageBuffer, apiKey) {
               type: 'text',
               text:
                 'You are a spot-the-difference puzzle creator.\n' +
-                'Analyze this image and plan exactly 5 subtle visual changes.\n' +
+                'Analyze this image and plan exactly 5 visual changes.\n' +
                 'For each change, give:\n' +
                 '- "description": a short instruction (e.g., "change the red cup to blue")\n' +
                 '- Bounding box as percentage coordinates (0–1) where the change is located\n' +

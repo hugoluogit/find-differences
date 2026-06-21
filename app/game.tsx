@@ -25,6 +25,7 @@ const HIT_MARGIN = 0.06;
 export default function GameScreen() {
   const { t } = useI18n();
   const insets = useSafeAreaInsets();
+  const [gameKey, setGameKey] = useState(0);
   const [game, setGame] = useState<GameState | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +38,6 @@ export default function GameScreen() {
   const [imageUri, setImageUri] = useState<string | null>(null);
   const savedUri = useRef<string | null>(null);
   const initiated = useRef(false);
-  const gameRenderKey = useRef(0);
 
   useEffect(() => {
     if (initiated.current) return;
@@ -54,12 +54,12 @@ export default function GameScreen() {
 
   const doGenerate = async (uri: string, sid: string) => {
     savedUri.current = uri;
+    setGameKey(k => k + 1);
     setImageUri(null);
     setPaying(false);
     setChecking(false);
     setError(null);
-    // Let React commit null render (imageUri=null,loading=false,game=null → returns null)
-    // so ALL native Image views are fully released before we proceed
+    // Force full View tree remount via gameKey + clear imageUri
     await new Promise(resolve => requestAnimationFrame(resolve));
     setLoading(true);
     await new Promise(resolve => requestAnimationFrame(resolve));
@@ -183,52 +183,44 @@ export default function GameScreen() {
     if (!imageLayout) setImageLayout({ w, h });
   }, [imageLayout]);
 
-  // Each state returns a different component TYPE so React
-  // fully unmounts the old tree before mounting the new one.
-  // This prevents any accidental image crossover between states.
-
-  if (loading) {
-    return <LoadingScreen insetsTop={insets.top} t={t} />;
-  }
-
-  if (imageUri && !game && !error) {
-    return (
-      <PaymentScreen
-        insetsTop={insets.top}
-        t={t}
-        imageUri={imageUri}
-        currentSessionId={currentSessionId}
-        paying={paying}
-        checking={checking}
-        onPay={handlePay}
-        onCheckPayment={handleCheckPayment}
-        onCancel={() => { setCurrentSessionId(null); setError(null); }}
-        onCancelNav={() => router.replace('/')}
-      />
-    );
-  }
-
-  if (error) {
-    return <ErrorScreen insetsTop={insets.top} t={t} error={error} onRetry={handleRetry} onBack={() => router.replace('/')} />;
-  }
-
-  if (!game) return null;
-
+  // Wrap all states in a View with dynamic key so React fully destroys
+  // and recreates the native tree — no Image view recycling across generations.
   return (
-    <GamePlayScreen
-      insetsTop={insets.top}
-      t={t}
-      game={game}
-      revealed={revealed}
-      onReveal={() => setRevealed(true)}
-      onBack={() => router.replace('/')}
-      onPlayAgain={handlePlayAgain}
-      hitTest={hitTest}
-      imageLayout={imageLayout}
-      onImageLayout={handleImageLayout}
-      onImageLoad={handleImageLoad}
-      imageSize={imageSize}
-    />
+    <View key={gameKey} style={{ flex: 1 }}>
+      {loading ? (
+        <LoadingScreen insetsTop={insets.top} t={t} />
+      ) : imageUri && !game && !error ? (
+        <PaymentScreen
+          insetsTop={insets.top}
+          t={t}
+          imageUri={imageUri}
+          currentSessionId={currentSessionId}
+          paying={paying}
+          checking={checking}
+          onPay={handlePay}
+          onCheckPayment={handleCheckPayment}
+          onCancel={() => { setCurrentSessionId(null); setError(null); }}
+          onCancelNav={() => router.replace('/')}
+        />
+      ) : error ? (
+        <ErrorScreen insetsTop={insets.top} t={t} error={error} onRetry={handleRetry} onBack={() => router.replace('/')} />
+      ) : !game ? null : (
+        <GamePlayScreen
+          insetsTop={insets.top}
+          t={t}
+          game={game}
+          revealed={revealed}
+          onReveal={() => setRevealed(true)}
+          onBack={() => router.replace('/')}
+          onPlayAgain={handlePlayAgain}
+          hitTest={hitTest}
+          imageLayout={imageLayout}
+          onImageLayout={handleImageLayout}
+          onImageLoad={handleImageLoad}
+          imageSize={imageSize}
+        />
+      )}
+    </View>
   );
 }
 
@@ -274,14 +266,11 @@ function PaymentScreen({
       <Ionicons name={awaitingPayment ? "hourglass-outline" : "lock-closed-outline"} size={36} color={THEME} />
       <Text style={styles.payTitle}>{t('payToPlay')}</Text>
       <Text style={styles.payPrice}>HK$4.00</Text>
-      <View>
-        <Image
-          source={{ uri: imageUri }}
-          style={{ width: previewW, height: previewH, borderRadius: 12, marginVertical: 16 }}
-          resizeMode="cover"
-        />
-        <View style={{ position:'absolute', top:8, right:8, backgroundColor:'blue', width:32, height:32, borderRadius:16, alignItems:'center', justifyContent:'center' }}><Text style={{ color:'#FFF', fontWeight:'800', fontSize:18 }}>P</Text></View>
-      </View>
+      <Image
+        source={{ uri: imageUri }}
+        style={{ width: previewW, height: previewH, borderRadius: 12, marginVertical: 16 }}
+        resizeMode="cover"
+      />
       {awaitingPayment ? (
         <>
           <TouchableOpacity
@@ -513,8 +502,8 @@ function ImagePanel({
             style={[
               styles.marker,
               {
-                left: imgRender.offsetX + d.x * imgRender.renderW - 75,
-                top: imgRender.offsetY + d.y * imgRender.renderH - 75,
+                left: imgRender.offsetX + (d.x + d.w / 2) * imgRender.renderW - 75,
+                top: imgRender.offsetY + (d.y + d.h / 2) * imgRender.renderH - 75,
               },
             ]}
           >

@@ -6,10 +6,9 @@ async function generateModifiedImage(imageBuffer, apiKey, changeDescriptions) {
   const base64 = imageBuffer.toString('base64');
 
   const prompt = changeDescriptions
-    ? 'Create a spot-the-difference puzzle.\n' +
-      'Make exactly these specific changes to the photo:\n' +
+    ? 'Modify this image with these specific changes. Return ONLY the modified image, not the original:\n' +
       changeDescriptions + '\n' +
-      'Keep everything else IDENTICAL to the original photo.'
+      'Keep everything else IDENTICAL to the original image.'
     : 'Create a spot-the-difference puzzle. Make exactly 5 subtle visual changes ' +
       'to this photo. Examples: change an object color, remove a small object, ' +
       'add a small detail, or modify something. ' +

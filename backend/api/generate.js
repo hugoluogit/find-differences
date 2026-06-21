@@ -37,8 +37,10 @@ module.exports = async (req, res) => {
     // Step 1: Plan 5 changes with ARK vision model
     const changes = await planChanges(squareInput, apiKey);
 
-    // Step 2: Build specific prompt for Seedream
-    const changePrompt = changes.map((c, i) => `${i + 1}. ${c.description}`).join('\n');
+    // Step 2: Build specific prompt for Seedream (include coordinates for precision)
+    const changePrompt = changes.map((c, i) =>
+      `${i + 1}. ${c.description} (at x:${c.x.toFixed(2)}, y:${c.y.toFixed(2)}, w:${c.w.toFixed(2)}, h:${c.h.toFixed(2)})`
+    ).join('\n');
 
     // Step 3: Generate modified image with those specific instructions
     const modifiedBuffer = await generateModifiedImage(squareInput, apiKey, changePrompt);
