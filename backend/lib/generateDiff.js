@@ -2,8 +2,18 @@ const sharp = require('sharp');
 
 const ARK_API = 'https://ark.cn-beijing.volces.com/api/v3/images/generations';
 
-async function generateModifiedImage(imageBuffer, apiKey) {
+async function generateModifiedImage(imageBuffer, apiKey, changeDescriptions) {
   const base64 = imageBuffer.toString('base64');
+
+  const prompt = changeDescriptions
+    ? 'Create a spot-the-difference puzzle.\n' +
+      'Make exactly these specific changes to the photo:\n' +
+      changeDescriptions + '\n' +
+      'Keep everything else IDENTICAL to the original photo.'
+    : 'Create a spot-the-difference puzzle. Make exactly 5 subtle visual changes ' +
+      'to this photo. Examples: change an object color, remove a small object, ' +
+      'add a small detail, or modify something. ' +
+      'Keep everything else IDENTICAL to the original photo.';
 
   const response = await fetch(ARK_API, {
     method: 'POST',
@@ -13,11 +23,7 @@ async function generateModifiedImage(imageBuffer, apiKey) {
     },
     body: JSON.stringify({
       model: 'doubao-seedream-5-0-260128',
-      prompt:
-        'Create a spot-the-difference puzzle. Make exactly 5 subtle visual changes ' +
-        'to this photo. Examples: change an object color, remove a small object, ' +
-        'add a small detail, or modify something. ' +
-        'Keep everything else IDENTICAL to the original photo.',
+      prompt,
       image: `data:image/jpeg;base64,${base64}`,
       size: '2K',
       output_format: 'jpeg',

@@ -1,6 +1,6 @@
 const sharp = require('sharp');
 const { generateModifiedImage } = require('../lib/generateDiff');
-const { findDifferences } = require('../lib/findDifferences');
+const { planChanges } = require('../lib/planChanges');
 const { verifySession, consumeSession } = require('../lib/stripe');
 
 module.exports = async (req, res) => {
@@ -34,17 +34,25 @@ module.exports = async (req, res) => {
       .jpeg({ quality: 85 })
       .toBuffer();
 
-    const modifiedBuffer = await generateModifiedImage(squareInput, apiKey);
+    // Step 1: Plan 5 changes with ARK vision model
+    const changes = await planChanges(squareInput, apiKey);
 
+    // Step 2: Build specific prompt for Seedream
+    const changePrompt = changes.map((c, i) => `${i + 1}. ${c.description}`).join('\n');
+
+    // Step 3: Generate modified image with those specific instructions
+    const modifiedBuffer = await generateModifiedImage(squareInput, apiKey, changePrompt);
+
+    // Step 4: Resize modified to match original dimensions
     const origMeta = await sharp(processed).metadata();
     const modified = await sharp(modifiedBuffer)
       .resize(origMeta.width, origMeta.height, { fit: 'cover', position: 'centre' })
       .jpeg({ quality: 85 })
       .toBuffer();
 
-    const differences = await findDifferences(processed, modified, apiKey);
+    // Step 5: Use ARK vision model's bounding boxes directly (no detection needed)
+    const differences = changes.map((c) => ({ x: c.x, y: c.y, w: c.w, h: c.h }));
 
-    // Only mark session as used AFTER successful generation
     consumeSession(sessionId);
 
     return res.json({
