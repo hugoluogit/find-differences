@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import type { GenerateResponse, CheckoutResponse, ConfirmPaymentResponse, AppVersionResponse } from './types';
@@ -31,12 +32,32 @@ export async function confirmPayment(sessionId: string): Promise<ConfirmPaymentR
   return res.json();
 }
 
-export async function generateGame(imageUri: string, sessionId?: string): Promise<GenerateResponse> {
-  // Convert HEIC to JPEG (Vercel's Sharp doesn't support HEIC)
+async function readImageAsBase64(imageUri: string): Promise<string> {
+  if (Platform.OS === 'web') {
+    // Browser: fetch blob → FileReader → base64
+    const response = await fetch(imageUri);
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        // data:image/jpeg;base64,... → strip prefix
+        const base64 = result.split(',')[1];
+        resolve(base64);
+      };
+      reader.onerror = () => reject(new Error('Failed to read image'));
+      reader.readAsDataURL(blob);
+    });
+  }
+  // Native: convert HEIC to JPEG (Vercel's Sharp doesn't support HEIC)
   const converted = await manipulateAsync(imageUri, [], { format: SaveFormat.JPEG, compress: 0.85 });
-  const base64 = await FileSystem.readAsStringAsync(converted.uri, {
+  return FileSystem.readAsStringAsync(converted.uri, {
     encoding: FileSystem.EncodingType.Base64,
   });
+}
+
+export async function generateGame(imageUri: string, sessionId?: string): Promise<GenerateResponse> {
+  const base64 = await readImageAsBase64(imageUri);
 
   const body: Record<string, string> = { image: base64 };
   if (sessionId) body.sessionId = sessionId;

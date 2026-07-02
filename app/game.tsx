@@ -167,12 +167,12 @@ export default function GameScreen() {
           foundIndices: newFound,
           status: completed ? 'completed' : 'playing',
         } : prev);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } catch {}
         return;
       }
     }
 
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch {}
   }, [game, toImagePct]);
 
   const handleImageLoad = useCallback((w: number, h: number) => {

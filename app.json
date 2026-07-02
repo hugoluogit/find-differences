@@ -46,6 +46,7 @@
     ],
     "owner": "hugoluo",
     "web": {
+      "bundler": "metro",
       "favicon": "./assets/favicon.png"
     },
     "extra": {

@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "index.ts",
   "dependencies": {
+    "@expo/metro-runtime": "~56.0.16",
     "@expo/vector-icons": "^15.1.1",
     "@react-native-async-storage/async-storage": "^3.1.1",
     "expo": "~56.0.8",
@@ -19,10 +20,12 @@
     "expo-status-bar": "~56.0.4",
     "expo-web-browser": "~56.0.5",
     "react": "19.2.3",
+    "react-dom": "19.2.3",
     "react-native": "0.85.3",
     "react-native-gesture-handler": "^3.0.0",
     "react-native-safe-area-context": "^5.8.0",
-    "react-native-screens": "^4.25.2"
+    "react-native-screens": "^4.25.2",
+    "react-native-web": "^0.21.2"
   },
   "devDependencies": {
     "@expo/cli": "^56.1.13",
