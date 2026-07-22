@@ -7,6 +7,5 @@
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/((?!_expo|assets|favicon\\.ico).*)", "destination": "/index.html" }
-  ],
-  "outputDirectory": "public"
+  ]
 }
