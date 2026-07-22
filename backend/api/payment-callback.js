@@ -1,5 +1,20 @@
 module.exports = async (req, res) => {
   const sessionId = req.query.session_id || '';
+  const cancelled = req.query.cancelled === '1';
+  const returnUrl = req.query.return_url ? decodeURIComponent(req.query.return_url) : null;
+
+  let redirectUrl;
+  if (returnUrl) {
+    // Web flow: redirect back to web app
+    redirectUrl = cancelled
+      ? `${returnUrl}?cancelled=1`
+      : `${returnUrl}?session_id=${sessionId}`;
+    res.writeHead(302, { Location: redirectUrl });
+    res.end();
+    return;
+  }
+
+  // Native flow: deep link
   const backUrl = `find-differences://payment-success?session_id=${sessionId}`;
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.end(`<!DOCTYPE html>

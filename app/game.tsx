@@ -13,9 +13,8 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import * as Linking from 'expo-linking';
 import { useI18n } from '../lib/i18n';
-import { generateGame, startCheckout, confirmPayment } from '../lib/api';
+import { generateGame, startCheckout, confirmPayment, openPaymentUrl } from '../lib/api';
 import { popPendingImageUri } from '../lib/store';
 import type { GameState, Difference } from '../lib/types';
 
@@ -42,6 +41,52 @@ export default function GameScreen() {
   useEffect(() => {
     if (initiated.current) return;
     initiated.current = true;
+
+    // Web: check for returning from Stripe payment
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const sid = params.get('session_id');
+      const cancelled = params.get('cancelled');
+      if (cancelled === '1') {
+        // Clean URL and show payment screen again
+        const newUrl = window.location.origin + window.location.pathname;
+        window.history.replaceState({}, '', newUrl);
+        const savedUri = sessionStorage.getItem('pendingImageUri');
+        if (savedUri) setImageUri(savedUri);
+        setLoading(false);
+        return;
+      }
+      if (sid) {
+        // Clean URL
+        const newUrl = window.location.origin + window.location.pathname;
+        window.history.replaceState({}, '', newUrl);
+        // Restore image URI from sessionStorage
+        const savedUri = sessionStorage.getItem('pendingImageUri');
+        if (savedUri) {
+          try { sessionStorage.removeItem('pendingImageUri'); } catch {}
+          setImageUri(savedUri);
+          setCurrentSessionId(sid);
+          // Auto-confirm after a short delay for state to settle
+          setTimeout(() => {
+            setChecking(true);
+            confirmPayment(sid).then(result => {
+              if (result.paid) {
+                doGenerate(savedUri, sid);
+              } else {
+                setChecking(false);
+                setLoading(false);
+                setError('Payment not confirmed');
+              }
+            }).catch(() => {
+              setChecking(false);
+              setLoading(false);
+              setError('Payment verification failed');
+            });
+          }, 500);
+          return;
+        }
+      }
+    }
 
     const uri = popPendingImageUri();
     if (!uri) {
@@ -89,13 +134,17 @@ export default function GameScreen() {
       const ref = Math.random().toString(36).substring(2, 15);
       const { url, sessionId: sid } = await startCheckout(ref);
       setCurrentSessionId(sid);
+      // On web, save imageUri to sessionStorage so it survives the redirect
+      if (typeof window !== 'undefined' && imageUri) {
+        try { sessionStorage.setItem('pendingImageUri', imageUri); } catch {}
+      }
       setPaying(false);
-      Linking.openURL(url);
+      openPaymentUrl(url);
     } catch (e: any) {
       console.log('Payment error:', e.message);
       setPaying(false);
     }
-  }, []);
+  }, [imageUri]);
 
   const handleCheckPayment = useCallback(async () => {
     if (!currentSessionId || !imageUri) return;

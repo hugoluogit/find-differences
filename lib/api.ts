@@ -11,16 +11,30 @@ const CONFIRM_URL = `${API_URL}/api/confirm-payment`;
 const APP_VERSION_URL = `${API_URL}/api/app-version`;
 
 export async function startCheckout(paymentRef: string): Promise<CheckoutResponse> {
+  const body: Record<string, string> = { paymentRef };
+  if (Platform.OS === 'web') {
+    body.returnUrl = window.location.origin + window.location.pathname;
+  }
   const res = await fetch(CHECKOUT_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ paymentRef }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) {
     const text = await res.text();
     throw new Error(text || `HTTP ${res.status}`);
   }
   return res.json();
+}
+
+export function openPaymentUrl(url: string) {
+  if (Platform.OS === 'web') {
+    window.location.href = url;
+  } else {
+    // Import Linking dynamically to avoid web issues
+    const { Linking } = require('react-native');
+    Linking.openURL(url);
+  }
 }
 
 export async function confirmPayment(sessionId: string): Promise<ConfirmPaymentResponse> {

@@ -11,13 +11,24 @@ module.exports = async (req, res) => {
     return res.status(500).json({ error: 'Stripe not configured' });
   }
 
-  const { paymentRef } = req.body || {};
+  const { paymentRef, returnUrl } = req.body || {};
   if (!paymentRef) {
     return res.status(400).json({ error: 'Missing paymentRef' });
   }
 
   try {
     const stripe = require('stripe')(secretKey);
+    const metadata = {};
+    if (returnUrl) metadata.returnUrl = returnUrl;
+
+    const callbackBase = 'https://find-differences-m5tr.vercel.app/api/payment-callback';
+    const successParams = new URLSearchParams({ session_id: '{CHECKOUT_SESSION_ID}' });
+    const cancelParams = new URLSearchParams({ cancelled: '1' });
+    if (returnUrl) {
+      successParams.set('return_url', encodeURIComponent(returnUrl));
+      cancelParams.set('return_url', encodeURIComponent(returnUrl));
+    }
+
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       line_items: [
@@ -31,8 +42,9 @@ module.exports = async (req, res) => {
         },
       ],
       client_reference_id: paymentRef,
-      success_url: 'https://find-differences-m5tr.vercel.app/api/payment-callback?session_id={CHECKOUT_SESSION_ID}',
-      cancel_url: 'https://find-differences-m5tr.vercel.app/api/payment-callback?cancelled=1',
+      metadata,
+      success_url: `${callbackBase}?${successParams.toString()}`,
+      cancel_url: `${callbackBase}?${cancelParams.toString()}`,
     });
 
     return res.json({ url: session.url, sessionId: session.id });
