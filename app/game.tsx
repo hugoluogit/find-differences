@@ -477,9 +477,12 @@ function GamePlayScreen({
                 {t('found')} {game.foundIndices.length} {t('of')} {game.totalChanges}
               </Text>
             </View>
-            <TouchableOpacity onPress={onReveal} style={styles.revealBtn} hitSlop={8}>
-              <Text style={styles.revealBtnText}>{t('reveal')}</Text>
-            </TouchableOpacity>
+            <View style={styles.hudRight}>
+              <Text style={styles.versionBadge}>v1.0.2</Text>
+              <TouchableOpacity onPress={onReveal} style={styles.revealBtn} hitSlop={8}>
+                <Text style={styles.revealBtnText}>{t('reveal')}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           <View style={styles.progressBg}>
@@ -629,6 +632,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   hudCenter: { flex: 1, alignItems: 'center' },
+  hudRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  versionBadge: { fontSize: 11, color: '#AAA', fontWeight: '500' },
   hudText: { fontSize: 17, fontWeight: '600', color: '#333' },
   progressBg: { height: 4, backgroundColor: '#F0F0F0', marginHorizontal: 16, borderRadius: 2 },
   progressFill: { height: '100%', backgroundColor: THEME, borderRadius: 2 },
