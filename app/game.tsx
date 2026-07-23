@@ -477,9 +477,12 @@ function GamePlayScreen({
                 {t('found')} {game.foundIndices.length} {t('of')} {game.totalChanges}
               </Text>
             </View>
-            <TouchableOpacity onPress={onReveal} style={styles.revealBtn} hitSlop={8}>
-              <Text style={styles.revealBtnText}>{t('reveal')}</Text>
-            </TouchableOpacity>
+            <View style={styles.hudRight}>
+              {isWeb && <Text style={styles.versionBadge}>v1.0.2</Text>}
+              <TouchableOpacity onPress={onReveal} style={styles.revealBtn} hitSlop={8}>
+                <Text style={styles.revealBtnText}>{t('reveal')}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           <View style={styles.progressBg}>
@@ -514,9 +517,12 @@ function GamePlayScreen({
                 {t('found')} {game.foundIndices.length} {t('of')} {game.totalChanges}
               </Text>
             </View>
-            <TouchableOpacity onPress={onReveal} style={styles.revealBtn} hitSlop={8}>
-              <Text style={styles.revealBtnText}>{t('reveal')}</Text>
-            </TouchableOpacity>
+            <View style={styles.hudRight}>
+              {isWeb && <Text style={styles.versionBadge}>v1.0.2</Text>}
+              <TouchableOpacity onPress={onReveal} style={styles.revealBtn} hitSlop={8}>
+                <Text style={styles.revealBtnText}>{t('reveal')}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           <View style={styles.progressBg}>

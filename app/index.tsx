@@ -4,6 +4,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  Platform,
 } from 'react-native';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -52,13 +53,17 @@ export default function HomeScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => router.push('/settings')}
-          style={styles.settingsBtn}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-        >
-          <Ionicons name="settings-outline" size={24} color="#666" />
-        </TouchableOpacity>
+        <View />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          {Platform.OS === 'web' && <Text style={styles.version}>v1.0.2</Text>}
+          <TouchableOpacity
+            onPress={() => router.push('/settings')}
+            style={styles.settingsBtn}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
+            <Ionicons name="settings-outline" size={24} color="#666" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.body}>
@@ -98,10 +103,11 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFF' },
   header: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 8,
   },
+  version: { fontSize: 11, color: '#AAA' },
   settingsBtn: { padding: 4 },
   body: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 },
   titleArea: { alignItems: 'center', marginBottom: 48 },

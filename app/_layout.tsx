@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, Linking, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, Linking } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import Constants from 'expo-constants';
@@ -64,21 +64,14 @@ function AppContent() {
   }
 
   return (
-    <View style={{ flex: 1 }}>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="game" />
-        <Stack.Screen
-          name="settings"
-          options={{ presentation: 'modal', headerShown: true, headerTitle: '' }}
-        />
-      </Stack>
-      {Platform.OS === 'web' && (
-        <View style={styles.globalVersionBadge}>
-          <Text style={styles.globalVersionText}>v1.0.2</Text>
-        </View>
-      )}
-    </View>
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="index" />
+      <Stack.Screen name="game" />
+      <Stack.Screen
+        name="settings"
+        options={{ presentation: 'modal', headerShown: true, headerTitle: '' }}
+      />
+    </Stack>
   );
 }
 
@@ -111,12 +104,4 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   buttonText: { color: '#FFF', fontSize: 17, fontWeight: '600' },
-  globalVersionBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 12,
-    zIndex: 9999,
-    pointerEvents: 'none' as any,
-  },
-  globalVersionText: { fontSize: 11, color: '#AAA', fontWeight: '500' },
 });
