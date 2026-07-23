@@ -8,6 +8,8 @@ import {
   StyleSheet,
   ActivityIndicator,
   Dimensions,
+  ScrollView,
+  Platform,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -407,10 +409,11 @@ function GamePlayScreen({
   hitTest, imageLayout, onImageLayout, onImageLoad, imageSize,
 }: GamePlayScreenProps) {
   const progress = game.foundIndices.length / game.totalChanges;
+  const isWeb = Platform.OS === 'web';
   const screenW = Dimensions.get('window').width;
-  const imgW = screenW - 32;
+  const imgW = isWeb ? 375 : screenW - 32;
   const availableH = Dimensions.get('window').height - insetsTop - 60 - 20 - 16;
-  const imgH = Math.floor((availableH - 8) / 2);
+  const imgH = isWeb ? 280 : Math.floor((availableH - 8) / 2);
   const diffMarkers = revealed
     ? game.differences
     : game.foundIndices.map((fi) => game.differences[fi]);
@@ -430,67 +433,112 @@ function GamePlayScreen({
     return { renderW, renderH, offsetX, offsetY };
   }, [imageSize, imgW, imgH]);
 
+  const content = (
+    <View style={isWeb ? styles.imageColumnWeb : styles.imageColumn}>
+      <ImagePanelMemo
+        key="original"
+        source={game.originalImage}
+        label={t('original')}
+        onTap={hitTest}
+        onLayout={onImageLayout}
+        onImageLoad={onImageLoad}
+        width={imgW}
+        height={imgH}
+        markers={diffMarkers}
+        markerOffsets={diffOffsets}
+        imgRender={imgRender}
+      />
+      <ImagePanelMemo
+        key="modified"
+        source={game.modifiedImage}
+        label={t('modified')}
+        onTap={hitTest}
+        onLayout={() => {}}
+        onImageLoad={() => {}}
+        width={imgW}
+        height={imgH}
+        markers={diffMarkers}
+        markerOffsets={diffOffsets}
+        imgRender={imgRender}
+      />
+    </View>
+  );
+
   return (
-    <View style={[styles.container, { paddingTop: insetsTop }]}>
-      <View style={styles.hud}>
-        <TouchableOpacity onPress={onBack} hitSlop={12}>
-          <Ionicons name="chevron-back" size={26} color="#333" />
-        </TouchableOpacity>
-        <View style={styles.hudCenter}>
-          <Text style={styles.hudText}>
-            {t('found')} {game.foundIndices.length} {t('of')} {game.totalChanges}
-          </Text>
-        </View>
-        <TouchableOpacity onPress={onReveal} style={styles.revealBtn} hitSlop={8}>
-          <Text style={styles.revealBtnText}>{t('reveal')}</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.progressBg}>
-        <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
-      </View>
-
-      <View style={styles.imageColumn}>
-        <ImagePanelMemo
-          key="original"
-          source={game.originalImage}
-          label={t('original')}
-          onTap={hitTest}
-          onLayout={onImageLayout}
-          onImageLoad={onImageLoad}
-          width={imgW}
-          height={imgH}
-          markers={diffMarkers}
-          markerOffsets={diffOffsets}
-          imgRender={imgRender}
-        />
-        <ImagePanelMemo
-          key="modified"
-          source={game.modifiedImage}
-          label={t('modified')}
-          onTap={hitTest}
-          onLayout={() => {}}
-          onImageLoad={() => {}}
-          width={imgW}
-          height={imgH}
-          markers={diffMarkers}
-          markerOffsets={diffOffsets}
-          imgRender={imgRender}
-        />
-      </View>
-
-      {game.status === 'completed' && (
-        <View style={styles.completedOverlay}>
-          <Ionicons name="checkmark-circle" size={48} color={THEME} />
-          <Text style={styles.completedText}>{t('completed')}</Text>
-          <View style={styles.buttonRow}>
-            <TouchableOpacity style={styles.retryBtn} onPress={onPlayAgain}>
-              <Text style={styles.retryBtnText}>{t('playAgain')}</Text>
+    <View style={isWeb ? styles.containerWeb : styles.container}>
+      {isWeb ? (
+        <ScrollView style={styles.scrollWeb} contentContainerStyle={{ paddingTop: insetsTop }}>
+          <View style={styles.hud}>
+            <TouchableOpacity onPress={onBack} hitSlop={12}>
+              <Ionicons name="chevron-back" size={26} color="#333" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.backBtn} onPress={onBack}>
-              <Text style={styles.backBtnText}>{t('newPhoto')}</Text>
+            <View style={styles.hudCenter}>
+              <Text style={styles.hudText}>
+                {t('found')} {game.foundIndices.length} {t('of')} {game.totalChanges}
+              </Text>
+            </View>
+            <TouchableOpacity onPress={onReveal} style={styles.revealBtn} hitSlop={8}>
+              <Text style={styles.revealBtnText}>{t('reveal')}</Text>
             </TouchableOpacity>
           </View>
+
+          <View style={styles.progressBg}>
+            <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
+          </View>
+
+          {content}
+
+          {game.status === 'completed' && (
+            <View style={styles.completedOverlay}>
+              <Ionicons name="checkmark-circle" size={48} color={THEME} />
+              <Text style={styles.completedText}>{t('completed')}</Text>
+              <View style={styles.buttonRow}>
+                <TouchableOpacity style={styles.retryBtn} onPress={onPlayAgain}>
+                  <Text style={styles.retryBtnText}>{t('playAgain')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.backBtn} onPress={onBack}>
+                  <Text style={styles.backBtnText}>{t('newPhoto')}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        </ScrollView>
+      ) : (
+        <View style={{ flex: 1, paddingTop: insetsTop }}>
+          <View style={styles.hud}>
+            <TouchableOpacity onPress={onBack} hitSlop={12}>
+              <Ionicons name="chevron-back" size={26} color="#333" />
+            </TouchableOpacity>
+            <View style={styles.hudCenter}>
+              <Text style={styles.hudText}>
+                {t('found')} {game.foundIndices.length} {t('of')} {game.totalChanges}
+              </Text>
+            </View>
+            <TouchableOpacity onPress={onReveal} style={styles.revealBtn} hitSlop={8}>
+              <Text style={styles.revealBtnText}>{t('reveal')}</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.progressBg}>
+            <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
+          </View>
+
+          {content}
+
+          {game.status === 'completed' && (
+            <View style={styles.completedOverlay}>
+              <Ionicons name="checkmark-circle" size={48} color={THEME} />
+              <Text style={styles.completedText}>{t('completed')}</Text>
+              <View style={styles.buttonRow}>
+                <TouchableOpacity style={styles.retryBtn} onPress={onPlayAgain}>
+                  <Text style={styles.retryBtnText}>{t('playAgain')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.backBtn} onPress={onBack}>
+                  <Text style={styles.backBtnText}>{t('newPhoto')}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
         </View>
       )}
     </View>
@@ -569,6 +617,8 @@ const ImagePanelMemo = memo(ImagePanel);
 const styles = StyleSheet.create({
   center: { flex: 1, backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center', gap: 16 },
   container: { flex: 1, backgroundColor: '#FFF' },
+  containerWeb: { flex: 1, backgroundColor: '#FFF' },
+  scrollWeb: { flex: 1 },
   loadingLabel: { fontSize: 15, color: '#888', marginTop: 8 },
   errorText: { fontSize: 17, fontWeight: '600', color: '#FF6B6B' },
   hud: {
@@ -589,6 +639,14 @@ const styles = StyleSheet.create({
     marginTop: 8,
     flex: 1,
     gap: 8,
+  },
+  imageColumnWeb: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginTop: 8,
+    gap: 8,
+    paddingBottom: 40,
   },
   imgWrapper: {
     borderRadius: 12,
