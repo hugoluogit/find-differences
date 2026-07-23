@@ -477,12 +477,9 @@ function GamePlayScreen({
                 {t('found')} {game.foundIndices.length} {t('of')} {game.totalChanges}
               </Text>
             </View>
-            <View style={styles.hudRight}>
-              <Text style={styles.versionBadge}>v1.0.2</Text>
-              <TouchableOpacity onPress={onReveal} style={styles.revealBtn} hitSlop={8}>
-                <Text style={styles.revealBtnText}>{t('reveal')}</Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity onPress={onReveal} style={styles.revealBtn} hitSlop={8}>
+              <Text style={styles.revealBtnText}>{t('reveal')}</Text>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.progressBg}>
