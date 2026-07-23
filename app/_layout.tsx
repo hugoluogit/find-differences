@@ -64,7 +64,7 @@ function AppContent() {
   }
 
   return (
-    <>
+    <View style={{ flex: 1 }}>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="game" />
@@ -78,7 +78,7 @@ function AppContent() {
           <Text style={styles.globalVersionText}>v1.0.2</Text>
         </View>
       )}
-    </>
+    </View>
   );
 }
 
