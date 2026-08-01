@@ -3,6 +3,8 @@ export interface Difference {
   y: number;
   w: number;
   h: number;
+  description_en: string;
+  description_zh: string;
 }
 
 export interface GenerateResponse {
@@ -10,6 +12,8 @@ export interface GenerateResponse {
   modifiedImage: string;
   differences: Difference[];
   totalChanges: number;
+  remainingPlays?: number;
+  newPlayToken?: string | null;
 }
 
 export interface GameState {
@@ -24,13 +28,24 @@ export interface GameState {
 export interface CheckoutResponse {
   url: string;
   sessionId: string;
+  plays: number;
 }
 
 export interface ConfirmPaymentResponse {
   paid: boolean;
-  sessionId: string | null;
+  playToken: string | null;
+  plays?: number;
+  reason?: string;
 }
 
 export interface AppVersionResponse {
   minimumVersion: string;
+}
+
+export type PlanOption = 1 | 5 | 10;
+
+export interface PlanConfig {
+  plays: PlanOption;
+  price: string;
+  label: string;
 }

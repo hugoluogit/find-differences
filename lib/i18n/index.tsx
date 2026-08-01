@@ -15,6 +15,7 @@ const translations: Record<Locale, Record<string, string>> = { en, zh, 'zh-TW': 
 interface I18nContextValue {
   locale: Locale;
   t: (key: string) => string;
+  tf: (key: string, params?: Record<string, string | number>) => string;
   setLocale: (locale: Locale) => Promise<void>;
 }
 
@@ -71,8 +72,21 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     [locale],
   );
 
+  const tf = useCallback(
+    (key: string, params?: Record<string, string | number>) => {
+      let text = t(key);
+      if (params) {
+        for (const [k, v] of Object.entries(params)) {
+          text = text.replaceAll(`{${k}}`, String(v));
+        }
+      }
+      return text;
+    },
+    [t],
+  );
+
   return (
-    <I18nContext.Provider value={{ locale, t, setLocale }}>
+    <I18nContext.Provider value={{ locale, t, tf, setLocale }}>
       {children}
     </I18nContext.Provider>
   );

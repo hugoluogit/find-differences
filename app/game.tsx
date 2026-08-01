@@ -17,14 +17,20 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useI18n } from '../lib/i18n';
 import { generateGame, startCheckout, confirmPayment, openPaymentUrl } from '../lib/api';
+import type { GameState, Difference, PlanOption } from '../lib/types';
 import { popPendingImageUri } from '../lib/store';
-import type { GameState, Difference } from '../lib/types';
 
 const THEME = '#FF6B8A';
 const HIT_MARGIN = 0.06;
 
+const PLANS: Array<{ plays: PlanOption; price: string; labelKey: string }> = [
+  { plays: 1, price: 'HK$4', labelKey: 'plan1' },
+  { plays: 5, price: 'HK$8', labelKey: 'plan5' },
+  { plays: 10, price: 'HK$12', labelKey: 'plan10' },
+];
+
 export default function GameScreen() {
-  const { t } = useI18n();
+  const { t, tf } = useI18n();
   const insets = useSafeAreaInsets();
   const [gameKey, setGameKey] = useState(0);
   const [game, setGame] = useState<GameState | null>(null);
@@ -35,10 +41,41 @@ export default function GameScreen() {
   const [revealed, setRevealed] = useState(false);
   const [paying, setPaying] = useState(false);
   const [checking, setChecking] = useState(false);
+  const [playToken, setPlayToken] = useState<string | null>(() => {
+    if (typeof sessionStorage !== 'undefined') return sessionStorage.getItem('playToken');
+    return null;
+  });
+  const [remainingPlays, setRemainingPlays] = useState(0);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const savedUri = useRef<string | null>(null);
   const initiated = useRef(false);
+
+  // Persist playToken to sessionStorage on changes
+  const updatePlayToken = useCallback((token: string | null) => {
+    setPlayToken(token);
+    if (typeof sessionStorage !== 'undefined') {
+      if (token) sessionStorage.setItem('playToken', token);
+      else sessionStorage.removeItem('playToken');
+    }
+  }, []);
+
+  // Web: enable body scrolling and override Expo's overflow:hidden
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      const style = document.getElementById('body-scroll-override');
+      if (!style) {
+        const el = document.createElement('style');
+        el.id = 'body-scroll-override';
+        el.textContent = 'html,body{overflow:auto!important}#root{height:auto!important;min-height:100vh!important}';
+        document.head.appendChild(el);
+      }
+      return () => {
+        const el = document.getElementById('body-scroll-override');
+        if (el) el.remove();
+      };
+    }
+  }, []);
 
   useEffect(() => {
     if (initiated.current) return;
@@ -53,7 +90,7 @@ export default function GameScreen() {
         // Clean URL and show payment screen again
         const newUrl = window.location.origin + window.location.pathname;
         window.history.replaceState({}, '', newUrl);
-        const savedUri = sessionStorage.getItem('pendingImageUri');
+        const savedUri = sessionStorage.getItem('pendingImageBase64');
         if (savedUri) setImageUri(savedUri);
         setLoading(false);
         return;
@@ -62,28 +99,32 @@ export default function GameScreen() {
         // Clean URL
         const newUrl = window.location.origin + window.location.pathname;
         window.history.replaceState({}, '', newUrl);
-        // Restore image URI from sessionStorage
-        const savedUri = sessionStorage.getItem('pendingImageUri');
+        // Restore image from sessionStorage (stored as base64 data URL)
+        const savedUri = sessionStorage.getItem('pendingImageBase64');
         if (savedUri) {
-          try { sessionStorage.removeItem('pendingImageUri'); } catch {}
+          try { sessionStorage.removeItem('pendingImageBase64'); } catch {}
           setImageUri(savedUri);
-          setCurrentSessionId(sid);
           // Auto-confirm after a short delay for state to settle
-          setTimeout(() => {
+          setTimeout(async () => {
             setChecking(true);
-            confirmPayment(sid).then(result => {
-              if (result.paid) {
-                doGenerate(savedUri, sid);
-              } else {
-                setChecking(false);
-                setLoading(false);
-                setError('Payment not confirmed');
+            // Retry up to 5 times with 2s delay (Stripe may need a moment)
+            for (let attempt = 0; attempt < 5; attempt++) {
+              try {
+                const result = await confirmPayment(sid);
+                if (result.paid && result.playToken) {
+                  updatePlayToken(result.playToken);
+                  setRemainingPlays(result.plays || 0);
+                  doGenerate(savedUri, result.playToken);
+                  return;
+                }
+              } catch (e: any) {
+                console.log('confirm attempt', attempt, e?.message);
               }
-            }).catch(() => {
-              setChecking(false);
-              setLoading(false);
-              setError('Payment verification failed');
-            });
+              if (attempt < 4) await new Promise(r => setTimeout(r, 2000));
+            }
+            setChecking(false);
+            setLoading(false);
+            setError(`Payment not confirmed (session: ${sid.slice(-8)})`);
           }, 500);
           return;
         }
@@ -99,7 +140,14 @@ export default function GameScreen() {
     setLoading(false);
   }, []);
 
-  const doGenerate = async (uri: string, sid: string) => {
+  // Auto-generate when image is ready and user has a playToken
+  useEffect(() => {
+    if (imageUri && !game && !error && playToken && !loading && !checking && !currentSessionId) {
+      doGenerate(imageUri, playToken);
+    }
+  }, [imageUri, playToken]);
+
+  const doGenerate = async (uri: string, token: string) => {
     savedUri.current = uri;
     setGameKey(k => k + 1);
     setImageUri(null);
@@ -112,7 +160,13 @@ export default function GameScreen() {
     await new Promise(resolve => requestAnimationFrame(resolve));
 
     try {
-      const res = await generateGame(uri, sid);
+      const res = await generateGame(uri, token);
+      if (res.newPlayToken) {
+        updatePlayToken(res.newPlayToken);
+      } else {
+        updatePlayToken(null);
+      }
+      setRemainingPlays(res.remainingPlays ?? 0);
       setGame({
         originalImage: `data:image/jpeg;base64,${res.originalImage}`,
         modifiedImage: `data:image/jpeg;base64,${res.modifiedImage}`,
@@ -124,21 +178,37 @@ export default function GameScreen() {
       setLoading(false);
     } catch (e: any) {
       console.log('generateGame error:', e.message);
+      if (e.message?.includes('402') || e.message?.includes('Payment') || e.message?.includes('play token')) {
+        // Token exhausted or invalid, show payment screen
+        updatePlayToken(null);
+        setLoading(false);
+        return;
+      }
       setError(e.message || 'Failed to generate puzzle');
       setLoading(false);
     }
   };
 
-  const handlePay = useCallback(async () => {
+  const handlePay = useCallback(async (plan: PlanOption = 1) => {
     try {
       setPaying(true);
       setError(null);
       const ref = Math.random().toString(36).substring(2, 15);
-      const { url, sessionId: sid } = await startCheckout(ref);
+      const { url, sessionId: sid } = await startCheckout(ref, plan);
       setCurrentSessionId(sid);
-      // On web, save imageUri to sessionStorage so it survives the redirect
+      // On web, convert image to base64 before redirect (blob URLs don't survive redirect)
       if (typeof window !== 'undefined' && imageUri) {
-        try { sessionStorage.setItem('pendingImageUri', imageUri); } catch {}
+        try {
+          const res = await fetch(imageUri);
+          const blob = await res.blob();
+          const base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+          sessionStorage.setItem('pendingImageBase64', base64);
+        } catch {}
       }
       setPaying(false);
       openPaymentUrl(url);
@@ -154,9 +224,11 @@ export default function GameScreen() {
     setError(null);
     try {
       const result = await confirmPayment(currentSessionId);
-      if (result.paid) {
+      if (result.paid && result.playToken) {
+        updatePlayToken(result.playToken);
+        setRemainingPlays(result.plays || 0);
         savedUri.current = imageUri;
-        doGenerate(imageUri, currentSessionId);
+        doGenerate(imageUri, result.playToken);
       } else {
         setChecking(false);
       }
@@ -165,11 +237,15 @@ export default function GameScreen() {
     }
   }, [currentSessionId, imageUri]);
 
+  const handlePayWithPlan = useCallback((plan: PlanOption) => {
+    handlePay(plan);
+  }, [handlePay]);
+
   const handleRetry = () => {
     setError(null);
     const uri = savedUri.current || imageUri;
-    if (uri && currentSessionId) {
-      doGenerate(uri, currentSessionId);
+    if (uri && playToken) {
+      doGenerate(uri, playToken);
     } else if (uri) {
       setLoading(false);
     } else {
@@ -179,6 +255,7 @@ export default function GameScreen() {
 
   const handlePlayAgain = () => {
     setGame((prev) => prev ? { ...prev, foundIndices: [], status: 'playing' } : prev);
+    setRevealed(false);
   };
 
   /** Convert container-relative px to image-relative %, accounting for letterbox */
@@ -186,13 +263,15 @@ export default function GameScreen() {
     if (!imageLayout || !imageSize) return null;
     const cw = imageLayout.w, ch = imageLayout.h;
     const iw = imageSize.w, ih = imageSize.h;
+    if (!iw || !ih || !cw || !ch) return null;
     const renderW = Math.min(cw, ch * (iw / ih));
     const renderH = Math.min(ch, cw / (iw / ih));
+    if (!renderW || !renderH) return null;
     const offsetX = (cw - renderW) / 2;
     const offsetY = (ch - renderH) / 2;
     const xPct = (px - offsetX) / renderW;
     const yPct = (py - offsetY) / renderH;
-    if (xPct < 0 || xPct > 1 || yPct < 0 || yPct > 1) return null;
+    if (isNaN(xPct) || isNaN(yPct) || xPct < 0 || xPct > 1 || yPct < 0 || yPct > 1) return null;
     return { xPct, yPct };
   }, [imageLayout, imageSize]);
 
@@ -206,10 +285,10 @@ export default function GameScreen() {
       if (game.foundIndices.includes(i)) continue;
       const d = game.differences[i];
       if (
-        xPct >= d.x - HIT_MARGIN &&
-        xPct <= d.x + d.w + HIT_MARGIN &&
-        yPct >= d.y - HIT_MARGIN &&
-        yPct <= d.y + d.h + HIT_MARGIN
+        xPct >= d.x - d.w / 2 - HIT_MARGIN &&
+        xPct <= d.x + d.w / 2 + HIT_MARGIN &&
+        yPct >= d.y - d.h / 2 - HIT_MARGIN &&
+        yPct <= d.y + d.h / 2 + HIT_MARGIN
       ) {
         const newFound = [...game.foundIndices, i];
         const completed = newFound.length >= game.totalChanges;
@@ -239,7 +318,7 @@ export default function GameScreen() {
   return (
     <View key={gameKey} style={{ flex: 1 }}>
       {loading ? (
-        <LoadingScreen insetsTop={insets.top} t={t} />
+        <LoadingScreen insetsTop={insets.top} t={t} imageUri={savedUri.current} />
       ) : imageUri && !game && !error ? (
         <PaymentScreen
           insetsTop={insets.top}
@@ -248,7 +327,7 @@ export default function GameScreen() {
           currentSessionId={currentSessionId}
           paying={paying}
           checking={checking}
-          onPay={handlePay}
+          onPayWithPlan={handlePayWithPlan}
           onCheckPayment={handleCheckPayment}
           onCancel={() => { setCurrentSessionId(null); setError(null); }}
           onCancelNav={() => router.replace('/')}
@@ -259,6 +338,7 @@ export default function GameScreen() {
         <GamePlayScreen
           insetsTop={insets.top}
           t={t}
+          tf={tf}
           game={game}
           revealed={revealed}
           onReveal={() => setRevealed(true)}
@@ -269,6 +349,7 @@ export default function GameScreen() {
           onImageLayout={handleImageLayout}
           onImageLoad={handleImageLoad}
           imageSize={imageSize}
+          remainingPlays={remainingPlays}
         />
       )}
     </View>
@@ -280,11 +361,51 @@ export default function GameScreen() {
 // always trigger a clean unmount → remount cycle, never View-in-place update.
 // ---------------------------------------------------------------------------
 
-function LoadingScreen({ insetsTop, t }: { insetsTop: number; t: (k: string) => string }) {
+function LoadingScreen({ insetsTop, t, imageUri }: { insetsTop: number; t: (k: string) => string; imageUri?: string | null }) {
+  const [targets, setTargets] = useState<Array<{ id: number; x: number; y: number }>>([]);
+  const [score, setScore] = useState(0);
+  const idRef = useRef(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const id = ++idRef.current;
+      const x = 0.15 + Math.random() * 0.7;
+      const y = 0.15 + Math.random() * 0.7;
+      setTargets(prev => [...prev.slice(-3), { id, x, y }]);
+      // auto-remove after 2s
+      setTimeout(() => setTargets(prev => prev.filter(t => t.id !== id)), 2000);
+    }, 1200);
+    return () => clearInterval(interval);
+  }, []);
+
+  const hitTarget = (id: number) => {
+    setTargets(prev => prev.filter(t => t.id !== id));
+    setScore(s => s + 1);
+  };
+
+  const isWeb = Platform.OS === 'web';
+  const screenW = Dimensions.get('window').width;
+  const previewW = isWeb ? 375 : screenW - 64;
+  const previewH = isWeb ? 280 : Math.floor(previewW * 0.75);
+
   return (
     <View style={[styles.center, { paddingTop: insetsTop }]}>
       <ActivityIndicator size="large" color={THEME} />
       <Text style={styles.loadingLabel}>{t('generating')}</Text>
+      <Text style={styles.loadingGameText}>{t('loadingGame')}</Text>
+      {imageUri ? (
+        <View style={{ width: previewW, height: previewH, borderRadius: 12, overflow: 'hidden', marginTop: 16 }}>
+          <Image source={{ uri: imageUri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+          {targets.map(tg => (
+            <TouchableWithoutFeedback key={tg.id} onPress={() => hitTarget(tg.id)}>
+              <View style={[styles.target, { left: `${tg.x * 100}%`, top: `${tg.y * 100}%` }]} />
+            </TouchableWithoutFeedback>
+          ))}
+          <View style={styles.targetScore}>
+            <Text style={styles.targetScoreText}>{score}</Text>
+          </View>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -296,7 +417,7 @@ interface PaymentScreenProps {
   currentSessionId: string | null;
   paying: boolean;
   checking: boolean;
-  onPay: () => void;
+  onPayWithPlan: (plan: PlanOption) => void;
   onCheckPayment: () => void;
   onCancel: () => void;
   onCancelNav: () => void;
@@ -305,18 +426,18 @@ interface PaymentScreenProps {
 function PaymentScreen({
   insetsTop, t, imageUri, currentSessionId,
   paying, checking,
-  onPay, onCheckPayment, onCancel, onCancelNav,
+  onPayWithPlan, onCheckPayment, onCancel, onCancelNav,
 }: PaymentScreenProps) {
+  const isWeb = Platform.OS === 'web';
   const screenW = Dimensions.get('window').width;
-  const previewW = screenW - 64;
-  const previewH = Math.floor(previewW * 0.75);
+  const previewW = isWeb ? 375 : screenW - 64;
+  const previewH = isWeb ? 280 : Math.floor(previewW * 0.75);
   const awaitingPayment = currentSessionId !== null;
 
   return (
     <View style={[styles.center, { paddingTop: insetsTop }]}>
       <Ionicons name={awaitingPayment ? "hourglass-outline" : "lock-closed-outline"} size={36} color={THEME} />
       <Text style={styles.payTitle}>{t('payToPlay')}</Text>
-      <Text style={styles.payPrice}>HK$4.00</Text>
       <Image
         source={{ uri: imageUri }}
         style={{ width: previewW, height: previewH, borderRadius: 12, marginVertical: 16 }}
@@ -344,20 +465,17 @@ function PaymentScreen({
         </>
       ) : (
         <>
-          <TouchableOpacity
-            style={[styles.payBtn, paying && { opacity: 0.6 }]}
-            onPress={onPay}
-            disabled={paying}
-          >
-            {paying ? (
-              <ActivityIndicator color="#FFF" size="small" />
-            ) : (
-              <Ionicons name="card-outline" size={20} color="#FFF" />
-            )}
-            <Text style={styles.payBtnText}>
-              {paying ? t('processing') : t('payBtn')}
-            </Text>
-          </TouchableOpacity>
+          {PLANS.map((plan) => (
+            <TouchableOpacity
+              key={plan.plays}
+              style={[styles.planBtn, paying && { opacity: 0.6 }]}
+              onPress={() => onPayWithPlan(plan.plays)}
+              disabled={paying}
+            >
+              <Text style={styles.planBtnLabel}>{t(plan.labelKey)}</Text>
+              <Text style={styles.planBtnPrice}>{plan.price}</Text>
+            </TouchableOpacity>
+          ))}
           <TouchableOpacity style={styles.cancelBtn} onPress={onCancelNav}>
             <Text style={styles.cancelBtnText}>{t('cancel')}</Text>
           </TouchableOpacity>
@@ -392,6 +510,7 @@ function ErrorScreen({
 interface GamePlayScreenProps {
   insetsTop: number;
   t: (k: string) => string;
+  tf: (k: string, params?: Record<string, string | number>) => string;
   game: GameState;
   revealed: boolean;
   onReveal: () => void;
@@ -402,11 +521,13 @@ interface GamePlayScreenProps {
   onImageLayout: (w: number, h: number) => void;
   onImageLoad: (w: number, h: number) => void;
   imageSize: { w: number; h: number } | null;
+  remainingPlays: number;
 }
 
 function GamePlayScreen({
-  insetsTop, t, game, revealed, onReveal, onBack, onPlayAgain,
+  insetsTop, t, tf, game, revealed, onReveal, onBack, onPlayAgain,
   hitTest, imageLayout, onImageLayout, onImageLoad, imageSize,
+  remainingPlays,
 }: GamePlayScreenProps) {
   const progress = game.foundIndices.length / game.totalChanges;
   const isWeb = Platform.OS === 'web';
@@ -426,8 +547,10 @@ function GamePlayScreen({
     if (!imageSize) return null;
     const cw = imgW, ch = imgH;
     const iw = imageSize.w, ih = imageSize.h;
+    if (!iw || !ih) return null;
     const renderW = Math.min(cw, ch * (iw / ih));
     const renderH = Math.min(ch, cw / (iw / ih));
+    if (!renderW || !renderH) return null;
     const offsetX = (cw - renderW) / 2;
     const offsetY = (ch - renderH) / 2;
     return { renderW, renderH, offsetX, offsetY };
@@ -474,11 +597,14 @@ function GamePlayScreen({
             </TouchableOpacity>
             <View style={styles.hudCenter}>
               <Text style={styles.hudText}>
-                {t('found')} {game.foundIndices.length} {t('of')} {game.totalChanges}
+                {t('found')}: {game.foundIndices.length}/{game.totalChanges}
               </Text>
             </View>
             <View style={styles.hudRight}>
-              {isWeb && <Text style={styles.versionBadge}>v1.0.2</Text>}
+              <Text style={styles.playsLeft}>
+                {tf('playsLeft', { n: remainingPlays })}
+              </Text>
+              {isWeb && <Text style={styles.versionBadge}>v1.0.19</Text>}
               <TouchableOpacity onPress={onReveal} style={styles.revealBtn} hitSlop={8}>
                 <Text style={styles.revealBtnText}>{t('reveal')}</Text>
               </TouchableOpacity>
@@ -491,18 +617,46 @@ function GamePlayScreen({
 
           {content}
 
-          {game.status === 'completed' && (
-            <View style={styles.completedOverlay}>
-              <Ionicons name="checkmark-circle" size={48} color={THEME} />
-              <Text style={styles.completedText}>{t('completed')}</Text>
-              <View style={styles.buttonRow}>
-                <TouchableOpacity style={styles.retryBtn} onPress={onPlayAgain}>
-                  <Text style={styles.retryBtnText}>{t('playAgain')}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.backBtn} onPress={onBack}>
-                  <Text style={styles.backBtnText}>{t('newPhoto')}</Text>
-                </TouchableOpacity>
-              </View>
+          {diffOffsets.length > 0 && (
+            <View style={styles.descPanel}>
+              {diffOffsets.map((di: number) => {
+                const d = game.differences[di];
+                return (
+                  <View key={di} style={styles.descItem}>
+                    <View style={styles.descNum}>
+                      <Text style={styles.descNumText}>{di + 1}</Text>
+                    </View>
+                    <View style={styles.descTextWrap}>
+                      <Text style={styles.descEn}>{d.description_en}</Text>
+                      {d.description_zh ? (
+                        <Text style={styles.descZh}>{d.description_zh}</Text>
+                      ) : null}
+                    </View>
+                  </View>
+                );
+              })}
+              {game.status === 'completed' && (
+                <View style={styles.completedSection}>
+                  <Ionicons name="checkmark-circle" size={32} color={THEME} />
+                  <Text style={styles.completedText}>{t('completed')}</Text>
+                  <TouchableOpacity style={styles.retryBtn} onPress={onPlayAgain}>
+                    <Text style={styles.retryBtnText}>{t('playAgain')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.backBtn} onPress={onBack}>
+                    <Text style={styles.backBtnText}>{t('newPhoto')}</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              {revealed && game.status !== 'completed' && (
+                <View style={styles.revealedActions}>
+                  <TouchableOpacity style={styles.retryBtn} onPress={onPlayAgain}>
+                    <Text style={styles.retryBtnText}>{t('playAgain')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.backBtn} onPress={onBack}>
+                    <Text style={styles.backBtnText}>{t('newPhoto')}</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           )}
         </ScrollView>
@@ -514,11 +668,14 @@ function GamePlayScreen({
             </TouchableOpacity>
             <View style={styles.hudCenter}>
               <Text style={styles.hudText}>
-                {t('found')} {game.foundIndices.length} {t('of')} {game.totalChanges}
+                {t('found')}: {game.foundIndices.length}/{game.totalChanges}
               </Text>
             </View>
             <View style={styles.hudRight}>
-              {isWeb && <Text style={styles.versionBadge}>v1.0.2</Text>}
+              <Text style={styles.playsLeft}>
+                {tf('playsLeft', { n: remainingPlays })}
+              </Text>
+              {isWeb && <Text style={styles.versionBadge}>v1.0.19</Text>}
               <TouchableOpacity onPress={onReveal} style={styles.revealBtn} hitSlop={8}>
                 <Text style={styles.revealBtnText}>{t('reveal')}</Text>
               </TouchableOpacity>
@@ -531,18 +688,46 @@ function GamePlayScreen({
 
           {content}
 
-          {game.status === 'completed' && (
-            <View style={styles.completedOverlay}>
-              <Ionicons name="checkmark-circle" size={48} color={THEME} />
-              <Text style={styles.completedText}>{t('completed')}</Text>
-              <View style={styles.buttonRow}>
-                <TouchableOpacity style={styles.retryBtn} onPress={onPlayAgain}>
-                  <Text style={styles.retryBtnText}>{t('playAgain')}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.backBtn} onPress={onBack}>
-                  <Text style={styles.backBtnText}>{t('newPhoto')}</Text>
-                </TouchableOpacity>
-              </View>
+          {diffOffsets.length > 0 && (
+            <View style={styles.descPanel}>
+              {diffOffsets.map((di: number) => {
+                const d = game.differences[di];
+                return (
+                  <View key={di} style={styles.descItem}>
+                    <View style={styles.descNum}>
+                      <Text style={styles.descNumText}>{di + 1}</Text>
+                    </View>
+                    <View style={styles.descTextWrap}>
+                      <Text style={styles.descEn}>{d.description_en}</Text>
+                      {d.description_zh ? (
+                        <Text style={styles.descZh}>{d.description_zh}</Text>
+                      ) : null}
+                    </View>
+                  </View>
+                );
+              })}
+              {game.status === 'completed' && (
+                <View style={styles.completedSection}>
+                  <Ionicons name="checkmark-circle" size={32} color={THEME} />
+                  <Text style={styles.completedText}>{t('completed')}</Text>
+                  <TouchableOpacity style={styles.retryBtn} onPress={onPlayAgain}>
+                    <Text style={styles.retryBtnText}>{t('playAgain')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.backBtn} onPress={onBack}>
+                    <Text style={styles.backBtnText}>{t('newPhoto')}</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              {revealed && game.status !== 'completed' && (
+                <View style={styles.revealedActions}>
+                  <TouchableOpacity style={styles.retryBtn} onPress={onPlayAgain}>
+                    <Text style={styles.retryBtnText}>{t('playAgain')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.backBtn} onPress={onBack}>
+                    <Text style={styles.backBtnText}>{t('newPhoto')}</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           )}
         </View>
@@ -583,15 +768,28 @@ function ImagePanel({
 }: PanelProps) {
   return (
     <TouchableWithoutFeedback
-      onPress={(e) => onTap(e.nativeEvent.locationX, e.nativeEvent.locationY)}
+      onPress={(e: any) => {
+            const ne = e.nativeEvent;
+            let x = ne.locationX;
+            let y = ne.locationY;
+            // On web, locationX/Y are not set; compute from DOM event
+            if (x === undefined && e.currentTarget) {
+              const rect = e.currentTarget.getBoundingClientRect();
+              x = ne.clientX - rect.left;
+              y = ne.clientY - rect.top;
+            }
+            onTap(x, y);
+          }}
     >
       <View style={[styles.imgWrapper, { width, height }]}>
         <Image
           source={{ uri: source }}
           style={{ width, height }}
           onLayout={() => onLayout(width, height)}
-          onLoad={(e) => {
-            const { width: iw, height: ih } = e.nativeEvent.source;
+          onLoad={(e: any) => {
+            const ne = e.nativeEvent;
+            const iw = ne.source?.width || ne.target?.naturalWidth || 1;
+            const ih = ne.source?.height || ne.target?.naturalHeight || 1;
             onImageLoad(iw, ih);
           }}
           resizeMode="contain"
@@ -605,8 +803,8 @@ function ImagePanel({
             style={[
               styles.marker,
               {
-                left: imgRender.offsetX + (d.x + d.w / 2) * imgRender.renderW - 75,
-                top: imgRender.offsetY + (d.y + d.h / 2) * imgRender.renderH - 75,
+                left: imgRender.offsetX + d.x * imgRender.renderW - 25,
+                top: imgRender.offsetY + d.y * imgRender.renderH - 25,
               },
             ]}
           >
@@ -623,9 +821,31 @@ const ImagePanelMemo = memo(ImagePanel);
 const styles = StyleSheet.create({
   center: { flex: 1, backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center', gap: 16 },
   container: { flex: 1, backgroundColor: '#FFF' },
-  containerWeb: { flex: 1, backgroundColor: '#FFF' },
-  scrollWeb: { flex: 1 },
+  containerWeb: { minHeight: '100vh', backgroundColor: '#FFF' },
+  scrollWeb: { minHeight: '100vh' },
   loadingLabel: { fontSize: 15, color: '#888', marginTop: 8 },
+  loadingGameText: { fontSize: 13, color: '#AAA' },
+  target: {
+    position: 'absolute',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,107,138,0.7)',
+    borderWidth: 2,
+    borderColor: '#FFF',
+    marginLeft: -22,
+    marginTop: -22,
+  },
+  targetScore: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  targetScoreText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
   errorText: { fontSize: 17, fontWeight: '600', color: '#FF6B6B' },
   hud: {
     flexDirection: 'row',
@@ -637,6 +857,7 @@ const styles = StyleSheet.create({
   hudCenter: { flex: 1, alignItems: 'center' },
   hudRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   versionBadge: { fontSize: 11, color: '#AAA', fontWeight: '500' },
+  playsLeft: { fontSize: 12, color: '#999', fontWeight: '500' },
   hudText: { fontSize: 17, fontWeight: '600', color: '#333' },
   progressBg: { height: 4, backgroundColor: '#F0F0F0', marginHorizontal: 16, borderRadius: 2 },
   progressFill: { height: '100%', backgroundColor: THEME, borderRadius: 2 },
@@ -678,35 +899,19 @@ const styles = StyleSheet.create({
   },
   marker: {
     position: 'absolute',
-    width: 150,
-    height: 150,
-    borderWidth: 5,
+    width: 50,
+    height: 50,
+    borderWidth: 3,
     borderColor: THEME,
-    borderRadius: 75,
+    borderRadius: 25,
     backgroundColor: 'rgba(255, 107, 138, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   markerText: {
     color: THEME,
-    fontSize: 40,
+    fontSize: 18,
     fontWeight: '800',
-  },
-  completedOverlay: {
-    position: 'absolute',
-    bottom: 40,
-    left: 16,
-    right: 16,
-    backgroundColor: '#FFF',
-    borderRadius: 16,
-    padding: 24,
-    alignItems: 'center',
-    gap: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: -4 },
-    elevation: 8,
   },
   completedText: { fontSize: 20, fontWeight: '700', color: '#333' },
   revealBtn: {
@@ -722,7 +927,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  buttonRow: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  buttonRow: { gap: 8, marginTop: 8 },
+  revealedActions: { marginTop: 16, gap: 8 },
   retryBtn: {
     backgroundColor: THEME,
     paddingHorizontal: 24,
@@ -739,7 +945,18 @@ const styles = StyleSheet.create({
   },
   backBtnText: { color: THEME, fontSize: 15, fontWeight: '600' },
   payTitle: { fontSize: 20, fontWeight: '700', color: '#333', marginTop: 8 },
-  payPrice: { fontSize: 36, fontWeight: '800', color: THEME },
+  planBtn: {
+    backgroundColor: THEME,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 12,
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  planBtnLabel: { color: '#FFF', fontSize: 16, fontWeight: '600' },
+  planBtnPrice: { color: '#FFF', fontSize: 20, fontWeight: '800' },
   payBtn: {
     backgroundColor: THEME,
     flexDirection: 'row',
@@ -753,4 +970,51 @@ const styles = StyleSheet.create({
   payBtnText: { color: '#FFF', fontSize: 17, fontWeight: '600' },
   cancelBtn: { paddingVertical: 8 },
   cancelBtnText: { fontSize: 15, color: '#888' },
+  descPanel: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 24,
+    gap: 8,
+  },
+  completedSection: {
+    alignItems: 'center',
+    marginTop: 16,
+    gap: 12,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#EEE',
+  },
+  descItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  descNum: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: THEME,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  descNumText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  descTextWrap: {
+    flex: 1,
+  },
+  descEn: {
+    fontSize: 14,
+    color: '#333',
+    lineHeight: 20,
+  },
+  descZh: {
+    fontSize: 13,
+    color: '#888',
+    lineHeight: 18,
+    marginTop: 2,
+  },
 });

@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/assets/node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/(.*)", "destination": "/fonts/$1" },
+    { "source": "/((?!api/|_expo/|assets/|favicon\\.ico|fonts/).*)", "destination": "/index.html" }
+  ]
+}

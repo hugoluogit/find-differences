@@ -55,7 +55,7 @@ function AppContent() {
         <Text style={styles.message}>{t('updateMessage')}</Text>
         <TouchableOpacity
           style={styles.button}
-          onPress={() => Linking.openURL('https://find-differences-m5tr.vercel.app')}
+          onPress={() => Linking.openURL('https://spotit-ai.vercel.app')}
         >
           <Text style={styles.buttonText}>{t('updateNow')}</Text>
         </TouchableOpacity>

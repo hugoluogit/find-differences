@@ -10,6 +10,7 @@
   "dependencies": {
     "pixelmatch": "^6.0.0",
     "pngjs": "^7.0.0",
+    "jose": "^5.10.0",
     "sharp": "^0.34.0",
     "stripe": "^22.2.1"
   },

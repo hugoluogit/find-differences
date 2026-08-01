@@ -56,7 +56,9 @@ export default function SettingsScreen() {
 
         <View style={styles.aboutSection}>
           <Text style={styles.sectionTitle}>{t('about')}</Text>
-          <Text style={styles.aboutText}>{t('madeBy')}</Text>
+          <Text style={styles.aboutText}>Email：37ftech@gmail.com</Text>
+          <Text style={styles.aboutText}>{t('appInDevelopment')}</Text>
+          <Text style={styles.aboutText}>{t('patentNotice')}</Text>
         </View>
       </ScrollView>
     </View>

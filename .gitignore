@@ -2,6 +2,8 @@
 
 # dependencies
 node_modules/
+!public/assets/node_modules/
+!backend/public/assets/node_modules/
 
 # Expo
 .expo/
@@ -37,7 +39,20 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# generated static files
+/public
+/backend/public
+
+# misc
+.ccgram-uploads/
+Captures/
+Stripe/
+SESSION_TRANSFER.md
+*.pdf
+*.docx
+
 # generated native folders
 /ios
 /android
 .vercel
+.env*
