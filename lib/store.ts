@@ -12,3 +12,26 @@ export function popPendingImageUri(): string | null {
   _pendingImageUri = null;
   return uri;
 }
+
+let _jwt: string | null = null;
+
+export function saveJwt(jwt: string): void {
+  if (typeof sessionStorage !== 'undefined') {
+    sessionStorage.setItem('playToken', jwt);
+  }
+  _jwt = jwt;
+}
+
+export function getJwt(): string | null {
+  if (typeof sessionStorage !== 'undefined') {
+    return sessionStorage.getItem('playToken');
+  }
+  return _jwt;
+}
+
+export function clearJwt(): void {
+  if (typeof sessionStorage !== 'undefined') {
+    sessionStorage.removeItem('playToken');
+  }
+  _jwt = null;
+}

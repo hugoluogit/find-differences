@@ -1,12 +1,13 @@
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
-import type { GenerateResponse, CheckoutResponse, ConfirmPaymentResponse, AppVersionResponse, PlanOption } from './types';
+import type { GenerateResponse, CheckoutResponse, ConfirmPaymentResponse, AppVersionResponse, VerifyReceiptResponse, PlanOption } from './types';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://spotit-ai.vercel.app';
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://ai-find-differences.vercel.app';
 const CHECKOUT_URL = `${API_URL}/api/checkout`;
 const GENERATE_URL = `${API_URL}/api/generate`;
 const CONFIRM_URL = `${API_URL}/api/confirm-payment`;
+const VERIFY_RECEIPT_URL = `${API_URL}/api/verify-receipt`;
 const APP_VERSION_URL = `${API_URL}/api/app-version`;
 
 export async function startCheckout(paymentRef: string, plan: PlanOption = 1): Promise<CheckoutResponse> {
@@ -41,6 +42,19 @@ export async function confirmPayment(sessionId: string): Promise<ConfirmPaymentR
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ sessionId }),
   });
+  return res.json();
+}
+
+export async function verifyReceipt(receipt: string): Promise<VerifyReceiptResponse> {
+  const res = await fetch(VERIFY_RECEIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ receipt }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || `Verify receipt failed: HTTP ${res.status}`);
+  }
   return res.json();
 }
 

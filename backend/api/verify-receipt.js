@@ -1,6 +1,10 @@
-const { createPlayToken, PLAYS_PER_PURCHASE } = require('../lib/jwt');
+const { createPlayToken, PLAYS_PER_PRODUCT } = require('../lib/jwt');
 
-const PRODUCT_ID = 'com.hugoluo.finddifferences.4plays';
+const PRODUCT_IDS = [
+  'com.hugoluo.finddifferences.1play',
+  'com.hugoluo.finddifferences.5plays',
+  'com.hugoluo.finddifferences.10plays',
+];
 const APPLE_PRODUCTION = 'https://buy.itunes.apple.com/verifyReceipt';
 const APPLE_SANDBOX = 'https://sandbox.itunes.apple.com/verifyReceipt';
 
@@ -48,17 +52,18 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'Invalid receipt', status: appleResult.status });
     }
 
-    // Extract the latest transaction for our product
+    // Extract the latest transaction for any of our products
     const inApp = appleResult.receipt?.in_app || [];
-    const ourTx = inApp.find((tx) => tx.product_id === PRODUCT_ID);
+    const ourTx = inApp.find((tx) => PRODUCT_IDS.includes(tx.product_id));
     if (!ourTx) {
       return res.status(400).json({ error: 'Product not found in receipt' });
     }
 
+    const playsRemaining = PLAYS_PER_PRODUCT[ourTx.product_id] || 1;
     const transactionId = ourTx.original_transaction_id;
-    const jwt = await createPlayToken(transactionId);
+    const jwt = await createPlayToken(transactionId, playsRemaining);
 
-    return res.json({ jwt, playsRemaining: PLAYS_PER_PURCHASE });
+    return res.json({ jwt, playsRemaining });
   } catch (error) {
     console.error('Receipt verification error:', error);
     return res.status(500).json({ error: error.message || 'Internal server error' });

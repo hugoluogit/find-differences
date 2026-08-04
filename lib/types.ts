@@ -42,6 +42,11 @@ export interface AppVersionResponse {
   minimumVersion: string;
 }
 
+export interface VerifyReceiptResponse {
+  jwt: string;
+  playsRemaining: number;
+}
+
 export type PlanOption = 1 | 5 | 10;
 
 export interface PlanConfig {

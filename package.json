@@ -11,6 +11,7 @@
     "expo-constants": "~56.0.18",
     "expo-file-system": "^56.0.7",
     "expo-haptics": "~56.0.3",
+    "expo-iap": "4.3.6",
     "expo-image-manipulator": "~56.0.19",
     "expo-image-picker": "^56.0.15",
     "expo-linking": "^56.0.14",
@@ -21,15 +22,15 @@
     "expo-web-browser": "~56.0.5",
     "heic2any": "^0.0.4",
     "jose": "^5.10.0",
-    "sharp": "^0.34.0",
-    "stripe": "^22.2.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.85.3",
     "react-native-gesture-handler": "^3.0.0",
     "react-native-safe-area-context": "^5.8.0",
     "react-native-screens": "^4.25.2",
-    "react-native-web": "^0.21.2"
+    "react-native-web": "^0.21.2",
+    "sharp": "^0.34.0",
+    "stripe": "^22.2.1"
   },
   "devDependencies": {
     "@expo/cli": "^56.1.13",
@@ -42,6 +43,8 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
+    "export:web": "expo export --platform web && node scripts/inject-meta.js",
+    "vercel-build": "expo export --platform web && node scripts/inject-meta.js",
     "postinstall": "patch-package"
   },
   "private": true

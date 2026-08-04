@@ -1,7 +1,7 @@
 import {
   initConnection,
   endConnection,
-  fetchProducts,
+  fetchProducts as fetchIapProducts,
   requestPurchase,
   finishTransaction,
   type Purchase,
@@ -10,7 +10,17 @@ import {
 import { verifyReceipt } from './api';
 import { saveJwt } from './store';
 
-const PRODUCT_ID = 'com.hugoluo.finddifferences.4plays';
+const PRODUCT_IDS = [
+  'com.hugoluo.finddifferences.1play',
+  'com.hugoluo.finddifferences.5plays',
+  'com.hugoluo.finddifferences.10plays',
+] as const;
+
+const PLAN_TO_SKU: Record<1 | 5 | 10, string> = {
+  1: 'com.hugoluo.finddifferences.1play',
+  5: 'com.hugoluo.finddifferences.5plays',
+  10: 'com.hugoluo.finddifferences.10plays',
+};
 
 let initialized = false;
 
@@ -24,33 +34,24 @@ export async function setupIAP() {
   }
 }
 
-export function getPurchaseProductId() {
-  return PRODUCT_ID;
-}
-
-export async function fetchProduct(): Promise<Product | null> {
+export async function fetchProducts(): Promise<Product[]> {
   try {
-    const products = await fetchProducts({ skus: [PRODUCT_ID] });
-    if (Array.isArray(products) && products.length > 0) {
-      return products[0] as Product;
-    }
-    return null;
+    const products = await (fetchIapProducts as any)({ skus: [...PRODUCT_IDS] });
+    return Array.isArray(products) ? (products as Product[]) : [];
   } catch {
-    return null;
+    return [];
   }
 }
 
-/**
- * Start a purchase flow for 4 plays.
- * Returns the JWT from the backend after receipt validation.
- */
-export async function purchase4Plays(): Promise<string> {
+export async function purchasePlays(plan: 1 | 5 | 10): Promise<string> {
   if (!initialized) await setupIAP();
+
+  const sku = PLAN_TO_SKU[plan];
 
   const purchase = await requestPurchase({
     request: {
-      apple: { sku: PRODUCT_ID },
-      google: { sku: PRODUCT_ID },
+      apple: { sku },
+      google: { skus: [sku] },
     },
     type: 'in-app',
   });
@@ -61,7 +62,7 @@ export async function purchase4Plays(): Promise<string> {
 
   const p = Array.isArray(purchase) ? purchase[0] : purchase;
 
-  const receipt = (p as Purchase).purchaseToken;
+  const receipt = (p as any).transactionReceipt || (p as Purchase).purchaseToken;
   if (!receipt) {
     throw new Error('No receipt received from App Store');
   }
@@ -70,7 +71,7 @@ export async function purchase4Plays(): Promise<string> {
 
   await finishTransaction({ purchase: p, isConsumable: true });
 
-  await saveJwt(jwt);
+  saveJwt(jwt);
 
   return jwt;
 }

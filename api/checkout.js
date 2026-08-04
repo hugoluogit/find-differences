@@ -29,7 +29,7 @@ module.exports = async (req, res) => {
     if (returnUrl) metadata.returnUrl = returnUrl;
 
     const returnParam = returnUrl ? `&return_url=${encodeURIComponent(returnUrl)}` : '';
-    const callbackBase = 'https://spotit-ai.vercel.app/api/payment-callback';
+    const callbackBase = 'https://ai-find-differences.vercel.app/api/payment-callback';
 
     const successUrl = `${callbackBase}?session_id={CHECKOUT_SESSION_ID}${returnParam}`;
     const cancelUrl = `${callbackBase}?cancelled=1${returnParam}`;

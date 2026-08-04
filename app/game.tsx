@@ -18,7 +18,7 @@ import * as Haptics from 'expo-haptics';
 import { useI18n } from '../lib/i18n';
 import { generateGame, startCheckout, confirmPayment, openPaymentUrl } from '../lib/api';
 import type { GameState, Difference, PlanOption } from '../lib/types';
-import { popPendingImageUri } from '../lib/store';
+import { popPendingImageUri, getJwt } from '../lib/store';
 
 const THEME = '#FF6B8A';
 const HIT_MARGIN = 0.06;
@@ -43,7 +43,7 @@ export default function GameScreen() {
   const [checking, setChecking] = useState(false);
   const [playToken, setPlayToken] = useState<string | null>(() => {
     if (typeof sessionStorage !== 'undefined') return sessionStorage.getItem('playToken');
-    return null;
+    return getJwt();
   });
   const [remainingPlays, setRemainingPlays] = useState(0);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
@@ -193,6 +193,20 @@ export default function GameScreen() {
     try {
       setPaying(true);
       setError(null);
+
+      if (Platform.OS !== 'web') {
+        // Native: use IAP
+        const { purchasePlays } = await import('../lib/iap');
+        const jwt = await purchasePlays(plan);
+        updatePlayToken(jwt);
+        setPaying(false);
+        if (imageUri) {
+          doGenerate(imageUri, jwt);
+        }
+        return;
+      }
+
+      // Web: Stripe Checkout
       const ref = Math.random().toString(36).substring(2, 15);
       const { url, sessionId: sid } = await startCheckout(ref, plan);
       setCurrentSessionId(sid);
@@ -215,8 +229,9 @@ export default function GameScreen() {
     } catch (e: any) {
       console.log('Payment error:', e.message);
       setPaying(false);
+      setError(e.message || 'Payment failed');
     }
-  }, [imageUri]);
+  }, [imageUri, updatePlayToken]);
 
   const handleCheckPayment = useCallback(async () => {
     if (!currentSessionId || !imageUri) return;
