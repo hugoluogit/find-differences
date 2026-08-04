@@ -28,7 +28,9 @@
     "react-native-gesture-handler": "^3.0.0",
     "react-native-safe-area-context": "^5.8.0",
     "react-native-screens": "^4.25.2",
-    "react-native-web": "^0.21.2",
+    "react-native-web": "^0.21.2"
+  },
+  "optionalDependencies": {
     "sharp": "^0.34.0",
     "stripe": "^22.2.1"
   },
