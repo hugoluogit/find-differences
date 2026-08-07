@@ -42,8 +42,7 @@
           }
         }
       ],
-      "./plugins/withSwiftSupport",
-      "expo-iap"
+      "./plugins/withSwiftSupport"
     ],
     "owner": "hugoluo",
     "web": {
