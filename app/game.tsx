@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, memo, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, memo, useCallback, useMemo, Component, type ReactNode } from 'react';
 import {
   View,
   Text,
@@ -29,7 +29,28 @@ const PLANS: Array<{ plays: PlanOption; price: string; labelKey: string }> = [
   { plays: 10, price: 'HK$12', labelKey: 'plan10' },
 ];
 
-export default function GameScreen() {
+class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; errorMsg: string }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, errorMsg: '' };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, errorMsg: error?.message || 'Unknown error' };
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={styles.center}>
+          <Text style={{ fontSize: 18, fontWeight: '700', color: '#FF6B8A', marginBottom: 8 }}>Error</Text>
+          <Text style={{ fontSize: 13, color: '#999', textAlign: 'center', paddingHorizontal: 32 }}>{this.state.errorMsg}</Text>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+function GameScreen() {
   const { t, tf } = useI18n();
   const insets = useSafeAreaInsets();
   const [gameKey, setGameKey] = useState(0);
@@ -1033,3 +1054,11 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 });
+
+export default function GameScreenWithErrorBoundary() {
+  return (
+    <ErrorBoundary>
+      <GameScreen />
+    </ErrorBoundary>
+  );
+}
