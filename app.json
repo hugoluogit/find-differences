@@ -46,6 +46,7 @@
       "./plugins/withSwiftSupport",
       "expo-iap"
     ],
+    "jsEngine": "jsc",
     "owner": "hugoluo",
     "web": {
       "bundler": "metro",
