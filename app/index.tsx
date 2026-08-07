@@ -121,8 +121,22 @@ export default function HomeScreen() {
     if (!result.canceled && result.assets[0]) {
       const asset = result.assets[0];
       if (!(await checkFileSize(asset))) return;
-      setPendingImageUri(asset.uri);
-      router.push('/game');
+      setConverting(true);
+      try {
+        const { manipulateAsync, SaveFormat } = require('expo-image-manipulator');
+        const resized = await manipulateAsync(
+          asset.uri,
+          [{ resize: { width: 2048 } }],
+          { compress: 0.85, format: SaveFormat.JPEG }
+        );
+        setConverting(false);
+        setPendingImageUri(resized.uri);
+        router.push('/game');
+      } catch {
+        setConverting(false);
+        setPendingImageUri(asset.uri);
+        router.push('/game');
+      }
     }
   };
 
@@ -149,9 +163,24 @@ export default function HomeScreen() {
     if (Platform.OS !== 'web') cameraOptions.quality = 0.8;
     const result = await ImagePicker.launchCameraAsync(cameraOptions);
     if (!result.canceled && result.assets[0]) {
-      if (!(await checkFileSize(result.assets[0]))) return;
-      setPendingImageUri(result.assets[0].uri);
-      router.push('/game');
+      const asset = result.assets[0];
+      if (!(await checkFileSize(asset))) return;
+      setConverting(true);
+      try {
+        const { manipulateAsync, SaveFormat } = require('expo-image-manipulator');
+        const resized = await manipulateAsync(
+          asset.uri,
+          [{ resize: { width: 2048 } }],
+          { compress: 0.85, format: SaveFormat.JPEG }
+        );
+        setConverting(false);
+        setPendingImageUri(resized.uri);
+        router.push('/game');
+      } catch {
+        setConverting(false);
+        setPendingImageUri(asset.uri);
+        router.push('/game');
+      }
     }
   };
 
