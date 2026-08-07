@@ -38,11 +38,13 @@
         {
           "ios": {
             "swiftVersion": "5.0",
-            "deploymentTarget": "16.4"
+            "deploymentTarget": "16.4",
+            "newArchEnabled": false
           }
         }
       ],
-      "./plugins/withSwiftSupport"
+      "./plugins/withSwiftSupport",
+      "expo-iap"
     ],
     "owner": "hugoluo",
     "web": {
