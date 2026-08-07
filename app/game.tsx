@@ -103,7 +103,7 @@ function GameScreen() {
     initiated.current = true;
 
     // Web: check for returning from Stripe payment
-    if (typeof window !== 'undefined') {
+    if (Platform.OS === 'web') {
       const params = new URLSearchParams(window.location.search);
       const sid = params.get('session_id');
       const cancelled = params.get('cancelled');
