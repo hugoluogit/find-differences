@@ -12,14 +12,14 @@ import { saveJwt } from './store';
 
 const PRODUCT_IDS = [
   'com.hugoluo.finddifferences.1play',
-  'com.hugoluo.finddifferences.5plays',
-  'com.hugoluo.finddifferences.10plays',
+  'com.hugoluo.finddifferences.5play',
+  'com.hugoluo.finddifferences.10play',
 ] as const;
 
 const PLAN_TO_SKU: Record<1 | 5 | 10, string> = {
   1: 'com.hugoluo.finddifferences.1play',
-  5: 'com.hugoluo.finddifferences.5plays',
-  10: 'com.hugoluo.finddifferences.10plays',
+  5: 'com.hugoluo.finddifferences.5play',
+  10: 'com.hugoluo.finddifferences.10play',
 };
 
 let initialized = false;

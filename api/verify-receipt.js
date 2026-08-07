@@ -2,8 +2,8 @@ const { createPlayToken, PLAYS_PER_PRODUCT } = require('../lib/jwt');
 
 const PRODUCT_IDS = [
   'com.hugoluo.finddifferences.1play',
-  'com.hugoluo.finddifferences.5plays',
-  'com.hugoluo.finddifferences.10plays',
+  'com.hugoluo.finddifferences.5play',
+  'com.hugoluo.finddifferences.10play',
 ];
 const APPLE_PRODUCTION = 'https://buy.itunes.apple.com/verifyReceipt';
 const APPLE_SANDBOX = 'https://sandbox.itunes.apple.com/verifyReceipt';
