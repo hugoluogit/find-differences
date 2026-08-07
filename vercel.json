@@ -5,6 +5,6 @@
   "installCommand": "npm install",
   "rewrites": [
     { "source": "/assets/node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/(.*)", "destination": "/fonts/$1" },
-    { "source": "/((?!api/|_expo/|assets/|favicon\\.ico|fonts/|og-image\\.png).*)", "destination": "/index.html" }
+    { "source": "/((?!api/|_expo/|assets/|favicon\\.ico|favicon-48\\.png|apple-touch-icon\\.png|fonts/|og-image\\.png).*)", "destination": "/index.html" }
   ]
 }
