@@ -50,8 +50,8 @@ export async function purchasePlays(plan: 1 | 5 | 10): Promise<string> {
 
   const purchase = await requestPurchase({
     request: {
-      apple: { sku },
-      google: { skus: [sku] },
+      ios: { sku },
+      android: { skus: [sku] },
     },
     type: 'in-app',
   });
