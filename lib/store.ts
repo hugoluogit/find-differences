@@ -16,22 +16,22 @@ export function popPendingImageUri(): string | null {
 let _jwt: string | null = null;
 
 export function saveJwt(jwt: string): void {
-  if (typeof sessionStorage !== 'undefined') {
-    sessionStorage.setItem('playToken', jwt);
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem('playToken', jwt);
   }
   _jwt = jwt;
 }
 
 export function getJwt(): string | null {
-  if (typeof sessionStorage !== 'undefined') {
-    return sessionStorage.getItem('playToken');
+  if (typeof localStorage !== 'undefined') {
+    return localStorage.getItem('playToken');
   }
   return _jwt;
 }
 
 export function clearJwt(): void {
-  if (typeof sessionStorage !== 'undefined') {
-    sessionStorage.removeItem('playToken');
+  if (typeof localStorage !== 'undefined') {
+    localStorage.removeItem('playToken');
   }
   _jwt = null;
 }

@@ -23,11 +23,12 @@ import { popPendingImageUri, getJwt } from '../lib/store';
 const THEME = '#FF6B8A';
 const HIT_MARGIN = 0.06;
 
-const PLANS: Array<{ plays: PlanOption; price: string; labelKey: string }> = [
-  { plays: 1, price: 'HK$4', labelKey: 'plan1' },
-  { plays: 5, price: 'HK$8', labelKey: 'plan5' },
-  { plays: 10, price: 'HK$12', labelKey: 'plan10' },
-];
+const PLANS: Array<{ plays: PlanOption; price: string; labelKey: string }> = Platform.OS === 'web'
+  ? [{ plays: 5, price: 'HK$5', labelKey: 'plan5' }]
+  : [
+      { plays: 1, price: 'HK$1', labelKey: 'plan1' },
+      { plays: 5, price: 'HK$5', labelKey: 'plan5' },
+    ];
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; errorMsg: string }> {
   constructor(props: { children: ReactNode }) {
@@ -63,7 +64,7 @@ function GameScreen() {
   const [paying, setPaying] = useState(false);
   const [checking, setChecking] = useState(false);
   const [playToken, setPlayToken] = useState<string | null>(() => {
-    if (typeof sessionStorage !== 'undefined') return sessionStorage.getItem('playToken');
+    if (typeof localStorage !== 'undefined') return localStorage.getItem('playToken');
     return getJwt();
   });
   const [remainingPlays, setRemainingPlays] = useState(0);
@@ -72,12 +73,12 @@ function GameScreen() {
   const savedUri = useRef<string | null>(null);
   const initiated = useRef(false);
 
-  // Persist playToken to sessionStorage on changes
+  // Persist playToken to localStorage on changes
   const updatePlayToken = useCallback((token: string | null) => {
     setPlayToken(token);
-    if (typeof sessionStorage !== 'undefined') {
-      if (token) sessionStorage.setItem('playToken', token);
-      else sessionStorage.removeItem('playToken');
+    if (typeof localStorage !== 'undefined') {
+      if (token) localStorage.setItem('playToken', token);
+      else localStorage.removeItem('playToken');
     }
   }, []);
 
@@ -111,7 +112,7 @@ function GameScreen() {
         // Clean URL and show payment screen again
         const newUrl = window.location.origin + window.location.pathname;
         window.history.replaceState({}, '', newUrl);
-        const savedUri = sessionStorage.getItem('pendingImageBase64');
+        const savedUri = localStorage.getItem('pendingImageBase64');
         if (savedUri) setImageUri(savedUri);
         setLoading(false);
         return;
@@ -120,10 +121,10 @@ function GameScreen() {
         // Clean URL
         const newUrl = window.location.origin + window.location.pathname;
         window.history.replaceState({}, '', newUrl);
-        // Restore image from sessionStorage (stored as base64 data URL)
-        const savedUri = sessionStorage.getItem('pendingImageBase64');
+        // Restore image from localStorage (stored as base64 data URL)
+        const savedUri = localStorage.getItem('pendingImageBase64');
         if (savedUri) {
-          try { sessionStorage.removeItem('pendingImageBase64'); } catch {}
+          try { localStorage.removeItem('pendingImageBase64'); } catch {}
           setImageUri(savedUri);
           // Auto-confirm after a short delay for state to settle
           setTimeout(async () => {
@@ -242,7 +243,7 @@ function GameScreen() {
             reader.onerror = reject;
             reader.readAsDataURL(blob);
           });
-          sessionStorage.setItem('pendingImageBase64', base64);
+          localStorage.setItem('pendingImageBase64', base64);
         } catch {}
       }
       setPaying(false);

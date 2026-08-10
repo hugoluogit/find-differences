@@ -47,7 +47,7 @@ export interface VerifyReceiptResponse {
   playsRemaining: number;
 }
 
-export type PlanOption = 1 | 5 | 10;
+export type PlanOption = 1 | 5;
 
 export interface PlanConfig {
   plays: PlanOption;

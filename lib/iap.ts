@@ -13,13 +13,11 @@ import { saveJwt } from './store';
 const PRODUCT_IDS = [
   'com.hugoluo.finddifferences.1play',
   'com.hugoluo.finddifferences.5play',
-  'com.hugoluo.finddifferences.10play',
 ] as const;
 
-const PLAN_TO_SKU: Record<1 | 5 | 10, string> = {
+const PLAN_TO_SKU: Record<1 | 5, string> = {
   1: 'com.hugoluo.finddifferences.1play',
   5: 'com.hugoluo.finddifferences.5play',
-  10: 'com.hugoluo.finddifferences.10play',
 };
 
 let initialized = false;
@@ -43,7 +41,7 @@ export async function fetchProducts(): Promise<Product[]> {
   }
 }
 
-export async function purchasePlays(plan: 1 | 5 | 10): Promise<string> {
+export async function purchasePlays(plan: 1 | 5): Promise<string> {
   if (!initialized) await setupIAP();
 
   const sku = PLAN_TO_SKU[plan];
