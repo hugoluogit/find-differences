@@ -26,7 +26,7 @@ const HIT_MARGIN = 0.06;
 const PLANS: Array<{ plays: PlanOption; price: string; labelKey: string }> = Platform.OS === 'web'
   ? [{ plays: 5, price: 'HK$5', labelKey: 'plan5' }]
   : [
-      { plays: 1, price: 'HK$1', labelKey: 'plan1' },
+      { plays: 1, price: 'HK$2', labelKey: 'plan1' },
       { plays: 5, price: 'HK$5', labelKey: 'plan5' },
     ];
 
