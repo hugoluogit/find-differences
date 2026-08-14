@@ -44,7 +44,8 @@
         }
       ],
       "./plugins/withSwiftSupport",
-      "expo-iap"
+      "expo-iap",
+      ["expo-image-picker", { "microphonePermission": false }]
     ],
     "jsEngine": "jsc",
     "owner": "hugoluo",
