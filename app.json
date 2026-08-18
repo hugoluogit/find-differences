@@ -47,6 +47,11 @@
       "expo-iap",
       ["expo-image-picker", { "microphonePermission": false }]
     ],
+    "locales": {
+      "en": "./locales/en.json",
+      "zh-Hans": "./locales/zh-Hans.json",
+      "zh-Hant": "./locales/zh-Hant.json"
+    },
     "jsEngine": "jsc",
     "owner": "hugoluo",
     "web": {

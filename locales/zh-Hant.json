@@ -1,0 +1,4 @@
+{
+  "NSCameraUsageDescription": "需要使用相機拍攝照片來產生找不同謎題。",
+  "NSPhotoLibraryUsageDescription": "需要存取相簿來選擇照片產生找不同謎題。"
+}

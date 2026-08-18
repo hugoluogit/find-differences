@@ -1,0 +1,4 @@
+{
+  "NSCameraUsageDescription": "This app needs access to your camera to take a photo for generating a spot-the-difference puzzle.",
+  "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to select a photo for generating a spot-the-difference puzzle."
+}
