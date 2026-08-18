@@ -11,7 +11,6 @@ module.exports = async (req, res) => {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const secretKey = process.env.STRIPE_SECRET_KEY;
-  console.log('checkout: key prefix =', secretKey ? secretKey.substring(0, 8) : 'undefined');
   if (!secretKey) {
     return res.status(500).json({ error: 'Stripe not configured' });
   }
@@ -29,7 +28,8 @@ module.exports = async (req, res) => {
     if (returnUrl) metadata.returnUrl = returnUrl;
 
     const returnParam = returnUrl ? `&return_url=${encodeURIComponent(returnUrl)}` : '';
-    const callbackBase = 'https://ai-find-differences.vercel.app/api/payment-callback';
+    const APP_URL = process.env.APP_URL || 'https://ai-find-differences.vercel.app';
+    const callbackBase = `${APP_URL}/api/payment-callback`;
 
     const successUrl = `${callbackBase}?session_id={CHECKOUT_SESSION_ID}${returnParam}`;
     const cancelUrl = `${callbackBase}?cancelled=1${returnParam}`;
