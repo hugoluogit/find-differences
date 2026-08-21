@@ -1,7 +1,5 @@
 const PLANS = {
-  1: { price: 400, name: '找不同 — 1 局', plays: 1 },      // HK$4.00
-  5: { price: 800, name: '找不同 — 5 局', plays: 5 },      // HK$8.00
-  10: { price: 1200, name: '找不同 — 10 局', plays: 10 },  // HK$12.00
+  5: { price: 500, name: '找不同 — 5 局', plays: 5 },      // HK$5.00
 };
 
 module.exports = async (req, res) => {
@@ -20,7 +18,7 @@ module.exports = async (req, res) => {
     return res.status(400).json({ error: 'Missing paymentRef' });
   }
 
-  const planConfig = PLANS[plan] || PLANS[1];
+  const planConfig = PLANS[plan] || PLANS[5];
 
   try {
     const stripe = require('stripe')(secretKey);
