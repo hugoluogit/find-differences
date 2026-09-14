@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useI18n } from '../lib/i18n';
 import { setPendingImageUri } from '../lib/store';
+import { requestConsent } from '../lib/consent';
 
 const THEME = '#FF6B8A';
 
@@ -54,6 +55,7 @@ export default function HomeScreen() {
   const [converting, setConverting] = useState(false);
 
   const pickImage = async () => {
+    if (!(await requestConsent(t))) return;
     // Web: use native file input to avoid expo-image-picker rejecting HEIC
     if (Platform.OS === 'web') {
       const file = await new Promise<File | null>((resolve) => {
@@ -154,6 +156,7 @@ export default function HomeScreen() {
   };
 
   const takePhoto = async () => {
+    if (!(await requestConsent(t))) return;
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
       showAlert(t('permissionRequired'), t('permissionCamera'));

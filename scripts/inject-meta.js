@@ -27,13 +27,14 @@ async function main() {
   }
 
   // Inject meta tags into HTML
-  const APP_TITLE = 'AI Find the Differences — Spot the Difference Game';
-  const APP_DESCRIPTION = 'Turn any photo into a spot-the-difference puzzle. Upload a selfie, couple photo, or pet pic—AI creates 5 subtle changes in seconds. Play instantly.';
-  const APP_URL = 'https://ai-find-differences.vercel.app';
-  const OG_IMAGE = 'https://ai-find-differences.vercel.app/og-image.png';
+  const APP_TITLE = 'AI找不同｜照片变找不同游戏 - AI Find the Differences';
+  const APP_DESCRIPTION = 'AI找不同：上传任何照片（自拍、情侣照、宠物照），AI 自动生成 5 处微妙差异，秒变找不同游戏。Turn any photo into a spot-the-difference puzzle with AI.';
+  const APP_URL = process.env.APP_URL || 'https://ai-find-differences.vercel.app';
+  const OG_IMAGE = `${APP_URL}/og-image.png`;
 
   const metaTags = `
     <meta name="description" content="${APP_DESCRIPTION}" />
+    <meta name="google-site-verification" content="H9AGIxhOHTIGz6KZiA3HJ4FqoEGvbPvgJEp6auJarBs" />
     <meta name="author" content="Hugo Luo" />
 
     <!-- Open Graph -->
@@ -42,7 +43,7 @@ async function main() {
     <meta property="og:image" content="${OG_IMAGE}" />
     <meta property="og:image:width" content="1024" />
     <meta property="og:image:height" content="1024" />
-    <meta property="og:image:alt" content="AI Find the Differences — spot the difference game" />
+    <meta property="og:image:alt" content="AI找不同 — 照片变找不同游戏" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="${APP_URL}" />
     <meta property="og:locale" content="zh_Hant" />
@@ -54,7 +55,7 @@ async function main() {
     <meta name="twitter:title" content="${APP_TITLE}" />
     <meta name="twitter:description" content="${APP_DESCRIPTION}" />
     <meta name="twitter:image" content="${OG_IMAGE}" />
-    <meta name="twitter:image:alt" content="AI Find the Differences — spot the difference game" />
+    <meta name="twitter:image:alt" content="AI找不同 — 照片变找不同游戏" />
 
     <!-- Canonical -->
     <link rel="canonical" href="${APP_URL}" />
@@ -62,7 +63,13 @@ async function main() {
     <!-- Favicon / App Icons -->
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />`;
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+
+    <!-- Vercel Web Analytics -->
+    <script>
+      window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+    </script>
+    <script defer src="/_vercel/insights/script.js"></script>`;
 
   let html = fs.readFileSync(htmlPath, 'utf8');
 
@@ -71,9 +78,70 @@ async function main() {
 
   // Inject title + meta tags
   html = html.replace(
-    '<title>找不同</title>',
+    /<title>.*?<\/title>/,
     `<title>${APP_TITLE}</title>${metaTags}`
   );
+
+  // Staging banner
+  if (APP_URL.includes('test-')) {
+    html = html.replace(
+      '</head>',
+      '<meta name="robots" content="noindex, nofollow" />\n  </head>'
+    );
+    html = html.replace(
+      '<div id="root"></div>',
+      `<div id="root"></div>
+<div id="staging-banner" style="position:fixed;top:0;left:0;right:0;background:#FF6B8A;color:#fff;text-align:center;padding:6px;font-size:13px;font-family:-apple-system,sans-serif;z-index:99999;pointer-events:none">STAGING — ${APP_URL}</div>`
+    );
+
+    // Create test checkout page for staging
+    const testPage = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Checkout Test</title>
+<style>
+body { font-family: -apple-system, sans-serif; padding: 20px; background: #FFF0F3; }
+button { background: #FF6B8A; color: #fff; border: none; padding: 16px 32px; border-radius: 12px; font-size: 18px; }
+pre { background: #fff; padding: 16px; border-radius: 8px; overflow-x: auto; font-size: 14px; word-break: break-all; }
+</style>
+</head>
+<body>
+<h1>API Test</h1>
+<p>API: <code id="apiUrl">...</code></p>
+<button onclick="test()">Call Checkout API</button>
+<pre id="result">Click the button...</pre>
+<script>
+const API = window.location.origin;
+document.getElementById('apiUrl').textContent = API;
+async function test() {
+  const el = document.getElementById('result');
+  el.textContent = 'Calling ' + API + '/api/checkout ...';
+  try {
+    const res = await fetch(API + '/api/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paymentRef: 'test-' + Date.now(), plan: 1 })
+    });
+    const data = await res.json();
+    el.textContent = 'Status: ' + res.status + '\\nSession ID: ' + data.sessionId + '\\nPREFIX: ' + data.sessionId.substring(0, 7) + '\\n\\nFull:\\n' + JSON.stringify(data, null, 2);
+  } catch(e) {
+    el.textContent = 'ERROR: ' + e.message;
+  }
+}
+</script>
+</body>
+</html>`;
+    fs.writeFileSync(path.join(distDir, 'test-checkout.html'), testPage);
+    console.log('Created test-checkout.html');
+  }
+
+  // Static SEO copy (crawler-readable, visually hidden)
+  const seoCopy = `
+<div id="seo-copy" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;">
+  <h1>AI找不同 — 把任意照片变成找不同游戏</h1>
+  <p>上传一张照片（自拍、情侣照、宠物照、风景照），AI 会在几秒内自动生成 5 处微妙差异，做成一个属于你自己的找不同游戏。找出全部 5 处差异即可通关，还能用文字描述每一处差异。AI Find the Differences: turn any photo into a spot-the-difference puzzle. Upload a selfie, couple photo, or pet pic—AI creates 5 subtle changes in seconds. Find all 5 differences to win.</p>
+</div>`;
+  html = html.replace('</body>', `${seoCopy}\n</body>`);
 
   fs.writeFileSync(htmlPath, html);
   console.log('Meta tags + favicon links injected into dist/index.html');

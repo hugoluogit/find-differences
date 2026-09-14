@@ -10,6 +10,10 @@
   "of": "of",
   "hint": "Hint",
   "completed": "All differences found!",
+  "share": "Share",
+  "saveImage": "Save Image",
+  "saveBare": "Save (no link)",
+  "close": "Close",
   "playAgain": "Play Again",
   "reveal": "Answer",
   "newPhoto": "New Photo",
@@ -45,5 +49,9 @@
   "heicNotSupported": "HEIC format is not supported on web. Please use JPG or PNG photos.",
   "loadingGame": "Play whack-a-mole while you wait!",
   "appInDevelopment": "Mobile app in development.",
-  "patentNotice": "Patent pending. Infringement will be prosecuted."
+  "patentNotice": "Patent pending. Infringement will be prosecuted.",
+  "consentTitle": "Photo Processing",
+  "consentMessage": "Your photo will be uploaded to our server and processed by a third-party AI service (Volcano Engine Doubao) to generate the puzzle. The original photo is deleted immediately after processing and is not used for any other purpose. Do you agree?",
+  "consentAgree": "Agree",
+  "consentDecline": "Decline"
 }

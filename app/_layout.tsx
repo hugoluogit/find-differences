@@ -55,7 +55,7 @@ function AppContent() {
         <Text style={styles.message}>{t('updateMessage')}</Text>
         <TouchableOpacity
           style={styles.button}
-          onPress={() => Linking.openURL('https://ai-find-differences.vercel.app')}
+          onPress={() => { const g = globalThis as any; Linking.openURL(g.window?.location?.origin ?? (process.env.EXPO_PUBLIC_API_URL ?? 'https://ai-find-differences.vercel.app')); }}
         >
           <Text style={styles.buttonText}>{t('updateNow')}</Text>
         </TouchableOpacity>

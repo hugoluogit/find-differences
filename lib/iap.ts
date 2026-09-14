@@ -1,9 +1,12 @@
+import { Platform } from 'react-native';
 import {
   initConnection,
   endConnection,
   fetchProducts as fetchIapProducts,
   requestPurchase,
   finishTransaction,
+  getReceiptDataIOS,
+  requestReceiptRefreshIOS,
   type Purchase,
   type Product,
 } from 'expo-iap';
@@ -46,6 +49,12 @@ export async function purchasePlays(plan: 1 | 5): Promise<string> {
 
   const sku = PLAN_TO_SKU[plan];
 
+  // Load products first so StoreKit has the product metadata before purchasing
+  const products = await fetchProducts();
+  if (products.length > 0 && !products.some((p) => p.id === sku)) {
+    throw new Error('This item is not available for purchase');
+  }
+
   const purchase = await requestPurchase({
     request: {
       ios: { sku },
@@ -55,12 +64,21 @@ export async function purchasePlays(plan: 1 | 5): Promise<string> {
   });
 
   if (!purchase) {
-    throw new Error('Purchase returned no data');
+    throw new Error('Purchase was cancelled or returned no data');
   }
 
   const p = Array.isArray(purchase) ? purchase[0] : purchase;
 
-  const receipt = (p as any).transactionReceipt || (p as Purchase).purchaseToken;
+  // New expo-iap returns a JWS in purchaseToken, but our backend validates the
+  // legacy base64 receipt — fetch that on iOS instead.
+  let receipt: string | null | undefined;
+  if (Platform.OS === 'ios') {
+    receipt = await getReceiptDataIOS();
+    if (!receipt) receipt = await requestReceiptRefreshIOS();
+  } else {
+    receipt = (p as Purchase).purchaseToken;
+  }
+
   if (!receipt) {
     throw new Error('No receipt received from App Store');
   }

@@ -19,9 +19,9 @@ React Native (Expo) 找不同遊戲 App。
 
 ## Architecture
 - 用戶上傳照片 → App 轉 base64 → 後端接收
-- GPT-4o vision 分析原圖，規劃5處修改位置+bounding box
-- Seedream (ARK Doubao) 依具體描述生成修改圖
-- GPT-4o 的 bounding box 直接作為差異座標（不需檢測）
+- Doubao Seed 2.0 Lite（視覺）分析原圖，規劃5處修改位置+bounding box
+- Seedream 5.0 (ARK Doubao) 依具體描述生成修改圖
+- Doubao 的 bounding box 直接作為差異座標（不需檢測）
 
 ## Language Support
 - 繁體中文 (zh-TW), 簡體中文 (zh), English (en)
@@ -35,7 +35,6 @@ React Native (Expo) 找不同遊戲 App。
 
 ## Environment Variables
 - EXPO_PUBLIC_API_URL — 後端 API 位址（app 端）
-- MODELSLAB_API_KEY — ModelsLab API key（後端，https://modelslab.com）
 - ARK_API_KEY — 火山引擎方舟 API key（Seedream 生成 + Doubao vision 規劃）
 - MINIMUM_APP_VERSION — 最低支援版本，低於此版本的 App 會被強制阻擋（後端，預設 "1.0.0"）
 

@@ -10,6 +10,10 @@
   "of": "/",
   "hint": "提示",
   "completed": "全部找到！",
+  "share": "分享",
+  "saveImage": "保存图片",
+  "saveBare": "保存不带网址版",
+  "close": "关闭",
   "playAgain": "再玩一次",
   "reveal": "答案",
   "newPhoto": "换张照片",
@@ -45,5 +49,9 @@
   "heicNotSupported": "网页版不支持 HEIC 格式，请使用 JPG 或 PNG 格式的照片。",
   "loadingGame": "等待期间，先玩玩打地鼠游戏吧！",
   "appInDevelopment": "手机app开发中。",
-  "patentNotice": "本游戏已申请专利，抄袭必究。"
+  "patentNotice": "本游戏已申请专利，抄袭必究。",
+  "consentTitle": "照片处理说明",
+  "consentMessage": "你的照片会上传到我们的服务器，并由第三方 AI 服务（火山引擎 Doubao）处理，用于生成找不同谜题。处理完成后，原始照片会立即删除，不会用于其他用途。是否同意？",
+  "consentAgree": "同意",
+  "consentDecline": "不同意"
 }

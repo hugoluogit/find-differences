@@ -56,3 +56,6 @@ SESSION_TRANSFER.md
 /android
 .vercel
 .env*
+
+# local Claude Code config
+.claude/

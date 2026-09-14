@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useI18n } from '../lib/i18n';
+import { generateShareCard } from '../lib/shareCard';
 import { generateGame, startCheckout, confirmPayment, openPaymentUrl } from '../lib/api';
 import type { GameState, Difference, PlanOption } from '../lib/types';
 import { popPendingImageUri, getJwt } from '../lib/store';
@@ -566,6 +567,27 @@ function GamePlayScreen({
   hitTest, imageLayout, onImageLayout, onImageLoad, imageSize,
   remainingPlays,
 }: GamePlayScreenProps) {
+  const [shareCard, setShareCard] = useState<string | null>(null);
+  const [shareLoading, setShareLoading] = useState(false);
+
+  const handleShare = useCallback(async () => {
+    if (shareLoading) return;
+    setShareLoading(true);
+    try {
+      const card = await generateShareCard({
+        originalImageDataUrl: game.originalImage,
+        modifiedImageDataUrl: game.modifiedImage,
+        titleZh: '这两张照片里有 5 处不同\n你能全部找到吗？',
+        subtitle: 'https://ai-find-differences.vercel.app',
+      });
+      setShareCard(card);
+    } catch (e) {
+      console.log('share card error:', e);
+    } finally {
+      setShareLoading(false);
+    }
+  }, [game, shareLoading]);
+
   const progress = game.foundIndices.length / game.totalChanges;
   const isWeb = Platform.OS === 'web';
   const screenW = Dimensions.get('window').width;
@@ -642,6 +664,11 @@ function GamePlayScreen({
                 {tf('playsLeft', { n: remainingPlays })}
               </Text>
               {isWeb && <Text style={styles.versionBadge}>v1.0.19</Text>}
+              {isWeb && (
+                <TouchableOpacity onPress={handleShare} style={styles.hudShareBtn} hitSlop={8} disabled={shareLoading}>
+                  {shareLoading ? <ActivityIndicator color="#FFF" size="small" /> : <Ionicons name="share-social-outline" size={18} color="#FFF" />}
+                </TouchableOpacity>
+              )}
               <TouchableOpacity onPress={onReveal} style={styles.revealBtn} hitSlop={8}>
                 <Text style={styles.revealBtnText}>{t('reveal')}</Text>
               </TouchableOpacity>
@@ -713,6 +740,11 @@ function GamePlayScreen({
                 {tf('playsLeft', { n: remainingPlays })}
               </Text>
               {isWeb && <Text style={styles.versionBadge}>v1.0.19</Text>}
+              {isWeb && (
+                <TouchableOpacity onPress={handleShare} style={styles.hudShareBtn} hitSlop={8} disabled={shareLoading}>
+                  {shareLoading ? <ActivityIndicator color="#FFF" size="small" /> : <Ionicons name="share-social-outline" size={18} color="#FFF" />}
+                </TouchableOpacity>
+              )}
               <TouchableOpacity onPress={onReveal} style={styles.revealBtn} hitSlop={8}>
                 <Text style={styles.revealBtnText}>{t('reveal')}</Text>
               </TouchableOpacity>
@@ -769,6 +801,9 @@ function GamePlayScreen({
           )}
         </View>
       )}
+      {isWeb && shareCard && (
+        <ShareCardModal cardDataUrl={shareCard} originalImage={game.originalImage} modifiedImage={game.modifiedImage} onClose={() => setShareCard(null)} t={t} />
+      )}
     </View>
   );
 }
@@ -776,6 +811,87 @@ function GamePlayScreen({
 function extractSessionId(url: string): string | null {
   const match = url.match(/session_id=([^&]+)/);
   return match ? decodeURIComponent(match[1]) : null;
+}
+
+async function dataUrlToFile(dataUrl: string): Promise<File> {
+  const res = await fetch(dataUrl);
+  const blob = await res.blob();
+  return new File([blob], 'ai-find-differences.png', { type: blob.type || 'image/png' });
+}
+
+function ShareCardModal({ cardDataUrl, originalImage, modifiedImage, onClose, t }: { cardDataUrl: string; originalImage: string; modifiedImage: string; onClose: () => void; t: (k: string) => string }) {
+  const download = () => {
+    const a = document.createElement('a');
+    a.href = cardDataUrl;
+    a.download = 'ai-find-differences.png';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const downloadBare = async () => {
+    try {
+      const bare = await generateShareCard({
+        originalImageDataUrl: originalImage,
+        modifiedImageDataUrl: modifiedImage,
+        titleZh: '',
+        subtitle: '',
+        bare: true,
+      });
+      const a = document.createElement('a');
+      a.href = bare;
+      a.download = 'ai-find-differences-clean.png';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (e) {
+      console.log('bare card error:', e);
+    }
+  };
+
+  const shareFile = async () => {
+    try {
+      const file = await dataUrlToFile(cardDataUrl);
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'AI Find the Differences',
+          text: 'Can you find all 5 differences?',
+        });
+      } else {
+        download();
+      }
+    } catch (e) {
+      console.log('share error:', e);
+    }
+  };
+
+  return (
+    <TouchableWithoutFeedback onPress={onClose}>
+      <View style={styles.modalOverlay}>
+        <TouchableWithoutFeedback onPress={() => {}}>
+          <View style={styles.modalCard}>
+            <Image source={{ uri: cardDataUrl }} style={styles.modalImage} resizeMode="contain" />
+            <TouchableOpacity style={styles.shareBtn} onPress={shareFile}>
+              <Ionicons name="share-social-outline" size={20} color="#FFF" />
+              <Text style={styles.shareBtnText}>{t('share')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.saveBtn} onPress={download}>
+              <Ionicons name="download-outline" size={20} color={THEME} />
+              <Text style={styles.saveBtnText}>{t('saveImage')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.saveBtn} onPress={downloadBare}>
+              <Ionicons name="image-outline" size={20} color={THEME} />
+              <Text style={styles.saveBtnText}>{t('saveBare')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
+              <Text style={styles.cancelBtnText}>{t('close')}</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableWithoutFeedback>
+      </View>
+    </TouchableWithoutFeedback>
+  );
 }
 
 interface PanelProps {
@@ -951,6 +1067,60 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   completedText: { fontSize: 20, fontWeight: '700', color: '#333' },
+  hudShareBtn: {
+    backgroundColor: '#25D366',
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shareBtn: {
+    backgroundColor: '#25D366',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+  shareBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
+  saveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: THEME,
+  },
+  saveBtnText: { color: THEME, fontSize: 16, fontWeight: '600' },
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+    zIndex: 10000,
+  },
+  modalCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    padding: 20,
+    width: '100%',
+    maxWidth: 420,
+    alignItems: 'center',
+    gap: 12,
+  },
+  modalTitle: { fontSize: 17, fontWeight: '700', color: '#333' },
+  modalImage: { width: '100%', height: 440, borderRadius: 12, backgroundColor: '#F8F8F8' },
   revealBtn: {
     paddingHorizontal: 14,
     paddingVertical: 6,

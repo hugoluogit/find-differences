@@ -3,7 +3,8 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import type { GenerateResponse, CheckoutResponse, ConfirmPaymentResponse, AppVersionResponse, VerifyReceiptResponse, PlanOption } from './types';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://ai-find-differences.vercel.app';
+const _global = globalThis as any;
+const API_URL = _global.window?.location?.origin ?? (process.env.EXPO_PUBLIC_API_URL ?? 'https://ai-find-differences.vercel.app');
 const CHECKOUT_URL = `${API_URL}/api/checkout`;
 const GENERATE_URL = `${API_URL}/api/generate`;
 const CONFIRM_URL = `${API_URL}/api/confirm-payment`;
