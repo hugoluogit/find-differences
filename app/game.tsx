@@ -730,7 +730,11 @@ function GamePlayScreen({
           )}
         </ScrollView>
       ) : (
-        <View style={{ flex: 1, paddingTop: insetsTop }}>
+        <ScrollView
+          style={{ flex: 1, backgroundColor: '#FFF' }}
+          contentContainerStyle={{ paddingTop: insetsTop, paddingBottom: 24 }}
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.hud}>
             <TouchableOpacity onPress={onBack} hitSlop={12}>
               <Ionicons name="chevron-back" size={26} color="#333" />
@@ -804,7 +808,7 @@ function GamePlayScreen({
               )}
             </View>
           )}
-        </View>
+        </ScrollView>
       )}
       {isWeb && shareCard && (
         <ShareCardModal cardDataUrl={shareCard} originalImage={game.originalImage} modifiedImage={game.modifiedImage} onClose={() => setShareCard(null)} t={t} />
@@ -1024,7 +1028,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     marginTop: 8,
-    flex: 1,
     gap: 8,
   },
   imageColumnWeb: {
