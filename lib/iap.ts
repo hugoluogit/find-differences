@@ -1,12 +1,9 @@
-import { Platform } from 'react-native';
 import {
   initConnection,
   endConnection,
   fetchProducts as fetchIapProducts,
   requestPurchase,
   finishTransaction,
-  getReceiptDataIOS,
-  requestReceiptRefreshIOS,
   type Purchase,
   type Product,
 } from 'expo-iap';
@@ -44,48 +41,64 @@ export async function fetchProducts(): Promise<Product[]> {
   }
 }
 
-export async function purchasePlays(plan: 1 | 5): Promise<string> {
+export async function purchasePlays(plan: 1 | 5): Promise<string | null> {
   if (!initialized) await setupIAP();
 
   const sku = PLAN_TO_SKU[plan];
 
   // Load products first so StoreKit has the product metadata before purchasing
   const products = await fetchProducts();
-  if (products.length > 0 && !products.some((p) => p.id === sku)) {
+  if (!products.some((p) => p.id === sku)) {
+    // StoreKit couldn't load the product — most often the Paid Apps Agreement
+    // isn't signed or the product is misconfigured in App Store Connect.
     throw new Error('This item is not available for purchase');
   }
 
-  const purchase = await requestPurchase({
-    request: {
-      ios: { sku },
-      android: { skus: [sku] },
-    },
-    type: 'in-app',
-  });
+  let purchase;
+  try {
+    purchase = await requestPurchase({
+      request: {
+        ios: { sku },
+        android: { skus: [sku] },
+      },
+      type: 'in-app',
+    });
+  } catch (e: any) {
+    // The user dismissed the payment sheet — not a real failure.
+    if (e?.code === 'user-cancelled') return null;
+    // Surface the native error code so IAP failures are diagnosable.
+    const code = e?.code ? `${e.code}: ` : '';
+    throw new Error(`${code}${e?.message || 'Purchase failed'}`);
+  }
 
   if (!purchase) {
-    throw new Error('Purchase was cancelled or returned no data');
+    return null;
   }
 
   const p = Array.isArray(purchase) ? purchase[0] : purchase;
 
-  // New expo-iap returns a JWS in purchaseToken, but our backend validates the
-  // legacy base64 receipt — fetch that on iOS instead.
-  let receipt: string | null | undefined;
-  if (Platform.OS === 'ios') {
-    receipt = await getReceiptDataIOS();
-    if (!receipt) receipt = await requestReceiptRefreshIOS();
-  } else {
-    receipt = (p as Purchase).purchaseToken;
-  }
+  // purchaseToken is the StoreKit 2 JWS on iOS (Play token on Android). The
+  // backend verifies the JWS directly, avoiding the legacy base64 receipt that
+  // was unreliable in the StoreKit 2 sandbox.
+  const receipt = (p as Purchase).purchaseToken;
 
   if (!receipt) {
-    throw new Error('No receipt received from App Store');
+    throw new Error('[token] empty');
   }
 
-  const { jwt } = await verifyReceipt(receipt);
+  let jwt: string;
+  try {
+    ({ jwt } = await verifyReceipt(receipt));
+  } catch (e: any) {
+    throw new Error(`[verify] ${e?.message || e}`);
+  }
 
-  await finishTransaction({ purchase: p, isConsumable: true });
+  try {
+    await finishTransaction({ purchase: p, isConsumable: true });
+  } catch (e: any) {
+    // Non-fatal: the play was already granted via the JWT above.
+    console.log('finishTransaction failed (non-fatal):', e?.message || e);
+  }
 
   saveJwt(jwt);
 

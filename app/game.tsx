@@ -221,6 +221,11 @@ function GameScreen() {
         // Native: use IAP
         const { purchasePlays } = await import('../lib/iap');
         const jwt = await purchasePlays(plan);
+        if (!jwt) {
+          // User cancelled the payment — nothing to do.
+          setPaying(false);
+          return;
+        }
         updatePlayToken(jwt);
         setPaying(false);
         if (imageUri) {
